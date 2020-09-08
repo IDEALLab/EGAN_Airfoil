@@ -53,7 +53,7 @@ class BezierLayer(nn.Module):
         pw1 = torch.arange(0., self.n_control_points).view(1, -1, 1) # [1, n_cp, 1]
         pw2 = torch.flip(pw1, (1,)) # [1, n_cp, 1]
         lbs = pw1 * torch.log(pv+_eps) + pw2 * torch.log(1-pv+_eps) \
-            + torch.lgamma(Tensor(self.n_control_points)+_eps).view(1, -1, 1) \
+            + torch.lgamma(torch.tensor(self.n_control_points)+_eps).view(1, -1, 1) \
             - torch.lgamma(pw1+1+_eps) - torch.lgamma(pw2+1+_eps) # [N, n_cp, n_dp]
         bs = torch.exp(lbs) # [N, n_cp, n_dp]
         return bs, pv, intvls
