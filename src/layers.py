@@ -36,9 +36,9 @@ class BezierLayer(nn.Module):
         )
 
     def forward(self, input: Tensor, control_points: Tensor, weights: Tensor) -> Tensor:
-        cp, w = self._check_consistency(control_points, weights) # [N, 2, n_cp], [N, 1, n_cp]
+        cp, w = self._check_consistency(control_points, weights) # [N, d, n_cp], [N, 1, n_cp]
         bs, pv, intvls = self.generate_bernstein_polynomial(input) # [N, n_cp, n_dp]
-        dp = (cp * w) @ bs / (w @ bs) # [N, 2, n_dp]
+        dp = (cp * w) @ bs / (w @ bs) # [N, d, n_dp]
         return dp, pv, intvls
     
     def _check_consistency(self, control_points: Tensor, weights: Tensor) -> Tensor:
@@ -49,7 +49,7 @@ class BezierLayer(nn.Module):
 
     def generate_bernstein_polynomial(self, input) -> Tensor:
         intvls = self.generate_intervals(input) # [N, n_dp]
-        pv = torch.clamp(torch.cumsum(intvls, -1), 0, 1).unsqueeze(1) # [N, 1, n_dp]
+        pv = torch.cumsum(intvls, -1).clamp(0, 1).unsqueeze(1) # [N, 1, n_dp]
         pw1 = torch.arange(0., self.n_control_points).view(1, -1, 1) # [1, n_cp, 1]
         pw2 = torch.flip(pw1, (1,)) # [1, n_cp, 1]
         lbs = pw1 * torch.log(pv+_eps) + pw2 * torch.log(1-pv+_eps) \
