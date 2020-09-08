@@ -47,7 +47,7 @@ class BezierLayer(nn.Module):
         assert weights.shape[1] == 1, 'There should be only one weight corresponding to each control point.'
         return control_points, weights
 
-    def generate_bernstein_polynomial(self, input) -> Tensor:
+    def generate_bernstein_polynomial(self, input: Tensor) -> Tensor:
         intvls = self.generate_intervals(input) # [N, n_dp]
         pv = torch.cumsum(intvls, -1).clamp(0, 1).unsqueeze(1) # [N, 1, n_dp]
         pw1 = torch.arange(0., self.n_control_points).view(1, -1, 1) # [1, n_cp, 1]
