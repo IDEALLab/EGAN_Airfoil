@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
-from .interpolation import interpolate
+from interpolation import interpolate
 
 class UIUCAirfoilDataset(Dataset):
     r"""UIUC Airfoil Dataset. 
