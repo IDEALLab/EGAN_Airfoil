@@ -4,36 +4,55 @@ import torch.nn as nn
 import layers
 
 class FeatureGenerator(nn.Module):
-    """Generate features for Bezier Layer.
+    """Regular fully connected network generating features.
     
     Args:
         in_features: The number of input features.
         out_feature: The number of output features.
         feature_gen_layers: The widths of the hidden layers.
+        combo: The layer combination to be stacked up.
+    
+    Shape:
+        - Input: `(N, H_in)` where H_in = in_features.
+        - Output: `(N, H_out)` where H_out = out_features.
     """
     def __init__(
         self, in_features, out_features, 
-        feature_gen_layers=[1024,]
+        feature_gen_layers=[1024,],
+        combo = layers.LinearCombo
         ):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
-        self.generator = self.build_generator(feature_gen_layers)
+        self.generator = self.build_generator(feature_gen_layers, combo)
     
     def forward(self, input):
         return self.generator(input)
 
-    def build_generator(self, feature_gen_layers):
+    def build_generator(self, feature_gen_layers, combo):
         generator = nn.Sequential()
         for idx, (in_ftr, out_ftr) in enumerate(zip(
             [self.in_features] + feature_gen_layers, 
             feature_gen_layers + [self.out_features]
             )):
-            generator.add_module(str(idx), layers.LinearCombo(in_ftr, out_ftr))
+            generator.add_module(str(idx), combo(in_ftr, out_ftr))
         return generator
 
 class CPWGenerator(nn.Module):
     """Generate given number of control points and weights for Bezier Layer.
+
+    Args:
+        in_features: The number of input features.
+        n_control_points: The number of control point and weights to be output.
+        dense_layers: The widths of the hidden layers of the MLP connecting 
+            input features and deconvolutional layers.
+        deconv_channels: The number of channels deconvolutional layers have.
+    
+    Shape:
+        - Input: `(N, H_in)` where H_in = in_features.
+        - Output:
+            - Control Points: `(N, 2, H_out)` where H_out = n_control_points.
+            - Weights: `(N, 1, H_out)` where H_out = n_control_points.
     """
     def __init__(
         self, in_features, n_control_points,
@@ -78,6 +97,22 @@ class CPWGenerator(nn.Module):
 
 class BezierGenerator(nn.Module):
     """Generator for BezierGAN related projects.
+
+    Args:
+        in_features: The number of input features.
+        n_control_points: The number of control point and weights to be output.
+        dense_layers: The widths of the hidden layers of the MLP connecting 
+            input features and deconvolutional layers.
+        deconv_channels: The number of channels deconvolutional layers have.
+    
+    Shape:
+        - Input: `(N, H_in)` where H_in = in_features.
+        - Output:
+            - Data Points: `(N, D, DP)` where D is the dimension and DP is the number of data points.
+            - Control Points: `(N, 2, CP)` where CP = n_control_points.
+            - Weights: `(N, 1, CP)` where CP = n_control_points.
+            - Parameter Variables: `(N, 1, DP)` where DP is the number of data points.
+            - Intervals: `(N, DP)` where DP is the number of data points.
     """
     def __init__(
         self, in_features, n_control_points, n_data_points, 
@@ -101,7 +136,7 @@ class BezierGenerator(nn.Module):
         dp, pv, intvls = self.bezier_layer(features, cp, w)
         return dp, cp, w, pv, intvls
 
-class EntropicDiscriminator(nn.Module):
+class Critic(nn.Module):
     def __init__(self):
         super().__init__()
         self.discriminator

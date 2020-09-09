@@ -14,10 +14,11 @@ class BezierLayer(nn.Module):
         n_data_points: number of data points to be sampled from the Bezier curve.
 
     Shape:
-        - Input: `(N, H)` where H = in_features.
-        - Control Points: `(N, D, CP)` where D stands for the dimension of Euclidean space, 
-          and CP is the number of control points. For 2D applications, D = 2.
-        - Weights: `(N, 1, CP)` where CP is the number of control points. 
+        - Input: 
+            - Input Features: `(N, H)` where H = in_features.
+            - Control Points: `(N, D, CP)` where D stands for the dimension of Euclidean space, 
+            and CP is the number of control points. For 2D applications, D = 2.
+            - Weights: `(N, 1, CP)` where CP is the number of control points. 
         - Output:
             - Data Points: `(N, D, DP)` where D is the dimension and DP is the number of data points.
             - Parameter Variables: `(N, 1, DP)` where DP is the number of data points.
