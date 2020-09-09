@@ -62,3 +62,51 @@ class BezierLayer(nn.Module):
         return 'in_features={}, n_control_points={}, n_data_points={}'.format(
             self.in_features, self.n_control_points, self.n_data_points
         )
+
+class _Combo(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.model = None
+    
+    def forward(self, input):
+        return self.model(input)
+
+class LinearCombo(_Combo):
+    r"""Regular fully connected layer combo.
+    """
+    def __init__(self, in_features, out_features, alpha=0.2):
+        super().__init__()
+        self.model = nn.Sequential(
+            nn.Linear(in_features, out_features),
+            nn.BatchNorm1d(out_features),
+            nn.LeakyReLU(alpha)
+        )
+
+class DeconvCombo(_Combo):
+    r"""Regular deconvolutional layer combo.
+    """
+    def __init__(
+        self, in_channels, out_channels, kernel_size, 
+        stride=1, padding=0, alpha=0.2
+        ):
+        super().__init__()
+        self.model = nn.Sequential(
+            nn.ConvTranspose2d(in_channels, out_channels, kernel_size, stride, padding),
+            nn.BatchNorm2d(out_channels),
+            nn.LeakyReLU(alpha)
+        )
+
+class ConvCombo(_Combo):
+    r"""Regular convolutional layer combo.
+    """
+    def __init__(
+        self, in_channels, out_channels, kernel_size, 
+        stride=1, padding=0, alpha=0.2, dropout=0.4
+        ):
+        super().__init__()
+        self.model = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding),
+            nn.BatchNorm2d(out_channels),
+            nn.LeakyReLU(alpha),
+            nn.Dropout(dropout)
+        )

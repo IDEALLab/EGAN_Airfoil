@@ -1,0 +1,8 @@
+{
+    "feature_gen": {
+        "layers": {
+            "widths": [1024],
+            "alphas": [0.2]
+        }
+    }
+}
