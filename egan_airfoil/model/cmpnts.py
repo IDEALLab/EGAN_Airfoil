@@ -11,7 +11,10 @@ class FeatureGenerator(nn.Module):
         out_feature: The number of output features.
         feature_gen_layers: The widths of the intermediate layers of the feature generator.
     """
-    def __init__(self, in_features, out_features, feature_gen_layers=[1024,]):
+    def __init__(
+        self, in_features, out_features, 
+        feature_gen_layers=[1024,]
+        ):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -23,95 +26,96 @@ class FeatureGenerator(nn.Module):
     def build_generator(self, feature_gen_layers):
         generator = nn.Sequential()
         for idx, (in_ftr, out_ftr) in enumerate(zip(
-            [self.in_features]+feature_gen_layers, 
-            feature_gen_layers+[self.out_features]
+            [self.in_features] + feature_gen_layers, 
+            feature_gen_layers + [self.out_features]
             )):
-            generator.add_module(str(idx), layers.LinearCombo(in_ftr, out_ftr))
+            generator.add_module(
+                str(idx), layers.LinearCombo(in_ftr, out_ftr)
+                )
         return generator
 
 class CPWGenerator(nn.Module):
-    """Generate control points and weights for Bezier Layer.
+    """Generate given number of control points and weights for Bezier Layer.
     """
-    def __init__(self, in_features, n_control_points, n_data_points, configs):
+    def __init__(
+        self, in_features, n_control_points,
+        dense_layers = [1024,],
+        deconv_channels = [32*8, 32*4, 32*2, 32],
+        ):
         super().__init__()
         self.in_features = in_features
         self.n_control_points = n_control_points
-        self.n_data_points = n_data_points
 
-        self.chnl_cpw = 32 * 8
-        self.n_cpw = n_control_points // 8
-        self.kernel_size = (3, 4)
+        self.in_chnl, self.in_width = self.calculate_parameters(n_control_points, deconv_channels)
 
-        self.dense = self.build_dense()
-        self.deconv = self.build_deconv()
-        self.cp_gen = self.build_cp_gen()
-        self.w_gen = self.build_w_gen()
+        self.dense = FeatureGenerator(
+            in_features, self.in_chnl * 3 * self.in_width, dense_layers
+            )
+        self.deconv = self.build_deconv(deconv_channels)
+        self.cp_gen = nn.Sequential(
+            nn.Conv2d(deconv_channels[-1], 1, (2, 1)),
+            nn.Tanh()
+        )
+        self.w_gen = nn.Sequential(
+            nn.Conv2d(deconv_channels[-1], 1, (3, 1)),
+            nn.Sigmoid()
+        )
     
     def forward(self, input):
         x = self.deconv(
-            self.dense(input).view(-1, self.chnl_cpw, 3, self.n_cpw)
+            self.dense(input).view(-1, self.in_chnl, 3, self.in_width)
         )
         cp = self.cp_gen(x).unsqueeze(1)
         w = self.w_gen(x).unsqueeze(1)
         return cp, w
     
-    def build_dense(self):
-        dense = nn.Sequential(
-            layers.LinearCombo(self.in_features, 1024),
-            layers.LinearCombo(1024, self.n_cpw * 3 * self.chnl_cpw)
-        )
-        return dense
+    def calculate_parameters(self, n_control_points, channels):
+        n_l = len(channels) - 1
+        in_chnl = channels[0]
+        in_width = n_control_points // (2 ** n_l)
+        assert in_width >= 4, \
+            'Too many deconvolutional layers ({}) for the number of control points ({}).'.format(
+                n_l, self.n_control_points
+                )
+        return in_chnl, in_width
     
-    def build_deconv(self):
-        deconv = nn.Sequential(
-            layers.DeconvCombo(self.chnl_cpw, self.chnl_cpw//2, self.kernel_size, stride=(1,2), padding=1),
-            layers.DeconvCombo(self.chnl_cpw//2, self.chnl_cpw//4, self.kernel_size, stride=(1,2), padding=1),
-            layers.DeconvCombo(self.chnl_cpw//4, self.chnl_cpw//8, self.kernel_size, stride=(1,2), padding=1)
-        )
+    def build_deconv(self, channels):
+        deconv = nn.Sequential()
+        for idx, (in_chnl, out_chnl) in enumerate(zip(channels[:-1], channels[1:])):
+            deconv.add_module(
+                str(idx), layers.DeconvCombo(
+                    in_chnl, out_chnl, 
+                    kernel_size=(3,4), stride=(1,2), padding=1
+                    )
+                )
         return deconv
-
-    def build_cp_gen(self):
-        cp_gen = nn.Sequential(
-            nn.Conv2d(self.chnl_cpw//8, 1, (2, 1)),
-            nn.Tanh()
-        )
-        return cp_gen
-
-    def build_w_gen(self):
-        w_gen = nn.Sequential(
-            nn.Conv2d(self.chnl_cpw//8, 1, (3, 1)),
-            nn.Sigmoid()
-        )
-        return w_gen
 
 class BezierGenerator(nn.Module):
     def __init__(
         self, in_features, n_control_points, n_data_points, 
         m_features=256,
         feature_gen_layers=[1024,],
-        cpw_gen_layers=3
+        dense_layers = [1024,],
+        deconv_channels = [32*8, 32*4, 32*2, 32],
         ):
         super().__init__()
         self.in_features = in_features
-        self.m_features = m_features
         self.n_control_points = n_control_points
         self.n_data_points = n_data_points
 
-        self.cpw_generator = CPWGenerator(
-            in_features, n_control_points, n_data_points
-            )
         self.feature_generator = FeatureGenerator(
             in_features, m_features, feature_gen_layers
             )
+        self.cpw_generator = CPWGenerator(
+            in_features, n_control_points, dense_layers, deconv_channels,
+            )
         self.bezier_layer = layers.BezierLayer(
-            self.m_features, 
-            self.n_control_points, 
-            self.n_data_points
+            m_features, n_control_points, n_data_points
             )
     
     def forward(self, input):
-        cp, w = self.cpw_generator(input)
         features = self.feature_generator(input)
+        cp, w = self.cpw_generator(input)
         dp, pv, intvls = self.bezier_layer(features, cp, w)
         return dp, cp, w, pv, intvls
 
@@ -121,4 +125,4 @@ class BezierDiscriminator(nn.Module):
         self.discriminator
 
 if __name__ == "__main__":
-    a = FeatureGenerator(10, 20)
+    a = CPWGenerator(10, 20)
