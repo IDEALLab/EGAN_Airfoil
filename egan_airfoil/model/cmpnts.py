@@ -144,6 +144,15 @@ class BezierGenerator(nn.Module):
 
 class Conv1DNetworks(nn.Module):
     """The 1D convolutional front end.
+
+    Args:
+        in_channels: The number of channels of each input feature.
+        in_features: The number of input features.
+        conv_channels: The number of channels of each conv1d layer.
+
+    Shape:
+        - Input: `(N, C, H_in)` where C = in_channel and H_in = in_features.
+        - Output: `(N, H_out)` where H_out is calculated based on in_features.
     """
     def __init__(
         self, in_channels: int, in_features: int,
@@ -179,13 +188,29 @@ class Conv1DNetworks(nn.Module):
             conv.add_module(str(idx+3), nn.LeakyReLU(0.2))
         return conv
 
-class EntropicInfoDiscriminator(Conv1DNetworks):
+class OTInfoDiscriminator(Conv1DNetworks):
+    """Discriminator for OT based GANs equiped with mutual information maximization.
+
+    Args: 
+        in_channels: The number of channels of each input feature.
+        in_features: The number of input features.
+        conv_channels: The number of channels of each conv1d layer.
+        crt_layers: The widths of fully connected hidden layers of critics.
+        pred_layers: The widths of fully connected hidden layers of latent code predictor.
+
+    Shape:
+        - Input: `(N, C, H)` where C = in_channel and H = in_features.
+        - Output: 
+            - Critics: `(N, NC)` where NC is the number of critics.
+            - Latent Code: `(N, NL)` where NL the number of latent variables.
+    """
     def __init__(
         self, in_channels: int, in_features: int, n_critics: int, latent_dim: int,
+        conv_channels: list = [64, 64*2, 64*4, 64*8, 64*16, 64*32],
         crt_layers: list = [1024,],
         pred_layers: list = [512,]
         ):
-        super().__init__(in_channels, in_features)
+        super().__init__(in_channels, in_features, conv_channels)
         self.critics = nn.Sequential(
             FeatureGenerator(self.m_features, crt_layers[-1], crt_layers[:-1]),
             nn.Linear(crt_layers[-1], n_critics)
@@ -203,7 +228,7 @@ class EntropicInfoDiscriminator(Conv1DNetworks):
 
 
 if __name__ == "__main__":
-    dis = EntropicInfoDiscriminator(2, 192, 2, 10)
+    dis = OTInfoDiscriminator(2, 192, 2, 10)
     b = torch.rand([50, 2, 192])
     c, l = dis(b)
     print(c.shape, l.shape)
