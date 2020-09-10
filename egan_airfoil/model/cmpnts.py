@@ -9,7 +9,7 @@ class MLP(nn.Module):
     Args:
         in_features: The number of input features.
         out_feature: The number of output features.
-        feature_gen_layers: The widths of the hidden layers.
+        layer_width: The widths of the hidden layers.
         combo: The layer combination to be stacked up.
     
     Shape:
@@ -24,12 +24,12 @@ class MLP(nn.Module):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
-        self.model = self.build_model(layer_width, combo)
+        self.model = self._build_model(layer_width, combo)
     
     def forward(self, input):
-        return self.generator(input)
+        return self.model(input)
 
-    def build_model(self, layer_width, combo):
+    def _build_model(self, layer_width, combo):
         model = nn.Sequential()
         for idx, (in_ftr, out_ftr) in enumerate(zip(
             [self.in_features] + layer_width, 
@@ -38,7 +38,7 @@ class MLP(nn.Module):
             model.add_module(str(idx), combo(in_ftr, out_ftr))
         return model
 
-class Conv1DNetworks(nn.Module):
+class Conv1DNetwork(nn.Module):
     """The 1D convolutional front end.
 
     Args:
@@ -57,18 +57,18 @@ class Conv1DNetworks(nn.Module):
         super().__init__()
         self.in_channels = in_channels
         self.in_features = in_features
-        self.m_features = self.calculate_m_features(conv_channels)
-        self.conv = self.build_conv(conv_channels)
+        self.m_features = self._calculate_m_features(conv_channels)
+        self.conv = self._build_conv(conv_channels)
 
     def forward(self, input):
         return self.conv(input)
     
-    def calculate_m_features(self, channels):
+    def _calculate_m_features(self, channels):
         n_l = len(channels)
         m_features = self.in_features // (2 ** n_l) * channels[-1]
         return m_features
 
-    def build_conv(self, channels):
+    def _build_conv(self, channels):
         conv = nn.Sequential()
         for idx, (in_chnl, out_chnl) in enumerate(zip(
             [self.in_channels] + channels[:-1], channels
@@ -110,10 +110,10 @@ class CPWGenerator(nn.Module):
         self.in_features = in_features
         self.n_control_points = n_control_points
 
-        self.in_chnl, self.in_width = self.calculate_parameters(n_control_points, deconv_channels)
+        self.in_chnl, self.in_width = self._calculate_parameters(n_control_points, deconv_channels)
 
         self.dense = MLP(in_features, self.in_chnl*self.in_width, dense_layers)
-        self.deconv = self.build_deconv(deconv_channels)
+        self.deconv = self._build_deconv(deconv_channels)
         self.cp_gen = nn.Sequential(nn.Conv1d(deconv_channels[-1], 2, 1), nn.Tanh())
         self.w_gen = nn.Sequential(nn.Conv1d(deconv_channels[-1], 1, 1), nn.Sigmoid())
     
@@ -123,7 +123,7 @@ class CPWGenerator(nn.Module):
         w = self.w_gen(x)
         return cp, w
     
-    def calculate_parameters(self, n_control_points, channels):
+    def _calculate_parameters(self, n_control_points, channels):
         n_l = len(channels) - 1
         in_chnl = channels[0]
         in_width = n_control_points // (2 ** n_l)
@@ -131,7 +131,7 @@ class CPWGenerator(nn.Module):
             .format(n_l, self.n_control_points)
         return in_chnl, in_width
     
-    def build_deconv(self, channels):
+    def _build_deconv(self, channels):
         deconv = nn.Sequential()
         for idx, (in_chnl, out_chnl) in enumerate(zip(channels[:-1], channels[1:])):
             deconv.add_module(
@@ -188,7 +188,7 @@ class BezierGenerator(nn.Module):
             self.in_features, self.n_control_points, self.n_data_points
         )
 
-class OTInfoDiscriminator(Conv1DNetworks):
+class OTInfoDiscriminator(Conv1DNetwork):
     """Discriminator for OT based GANs equiped with mutual information maximization.
 
     Args: 
