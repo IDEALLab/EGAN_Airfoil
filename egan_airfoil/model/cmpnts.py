@@ -3,7 +3,7 @@ import numpy as np
 import torch.nn as nn
 import layers
 
-class FeatureGenerator(nn.Module):
+class MLP(nn.Module):
     """Regular fully connected network generating features.
     
     Args:
@@ -18,25 +18,71 @@ class FeatureGenerator(nn.Module):
     """
     def __init__(
         self, in_features: int, out_features:int, 
-        feature_gen_layers: list = [1024,],
+        layer_width: list = [1024,],
         combo = layers.LinearCombo
         ):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
-        self.generator = self.build_generator(feature_gen_layers, combo)
+        self.model = self.build_model(layer_width, combo)
     
     def forward(self, input):
         return self.generator(input)
 
-    def build_generator(self, feature_gen_layers, combo):
-        generator = nn.Sequential()
+    def build_model(self, layer_width, combo):
+        model = nn.Sequential()
         for idx, (in_ftr, out_ftr) in enumerate(zip(
-            [self.in_features] + feature_gen_layers, 
-            feature_gen_layers + [self.out_features]
+            [self.in_features] + layer_width, 
+            layer_width + [self.out_features]
             )):
-            generator.add_module(str(idx), combo(in_ftr, out_ftr))
-        return generator
+            model.add_module(str(idx), combo(in_ftr, out_ftr))
+        return model
+
+class Conv1DNetworks(nn.Module):
+    """The 1D convolutional front end.
+
+    Args:
+        in_channels: The number of channels of each input feature.
+        in_features: The number of input features.
+        conv_channels: The number of channels of each conv1d layer.
+
+    Shape:
+        - Input: `(N, C, H_in)` where C = in_channel and H_in = in_features.
+        - Output: `(N, H_out)` where H_out is calculated based on in_features.
+    """
+    def __init__(
+        self, in_channels: int, in_features: int,
+        conv_channels: list = [64, 64*2, 64*4, 64*8, 64*16, 64*32]
+        ):
+        super().__init__()
+        self.in_channels = in_channels
+        self.in_features = in_features
+        self.m_features = self.calculate_m_features(conv_channels)
+        self.conv = self.build_conv(conv_channels)
+
+    def forward(self, input):
+        return self.conv(input)
+    
+    def calculate_m_features(self, channels):
+        n_l = len(channels)
+        m_features = self.in_features // (2 ** n_l) * channels[-1]
+        return m_features
+
+    def build_conv(self, channels):
+        conv = nn.Sequential()
+        for idx, (in_chnl, out_chnl) in enumerate(zip(
+            [self.in_channels] + channels[:-1], channels
+            )):
+            conv.add_module(
+                str(idx), layers.Conv1DCombo(
+                    in_chnl, out_chnl, 
+                    kernel_size=4, stride=2, padding=1
+                    )
+                )
+            conv.add_module(str(idx+1), nn.Flatten())
+            conv.add_module(str(idx+2), nn.BatchNorm1d(self.m_features))
+            conv.add_module(str(idx+3), nn.LeakyReLU(0.2))
+        return conv
 
 class CPWGenerator(nn.Module):
     """Generate given number of control points and weights for Bezier Layer.
@@ -66,7 +112,7 @@ class CPWGenerator(nn.Module):
 
         self.in_chnl, self.in_width = self.calculate_parameters(n_control_points, deconv_channels)
 
-        self.dense = FeatureGenerator(in_features, self.in_chnl*self.in_width, dense_layers)
+        self.dense = MLP(in_features, self.in_chnl*self.in_width, dense_layers)
         self.deconv = self.build_deconv(deconv_channels)
         self.cp_gen = nn.Sequential(nn.Conv1d(deconv_channels[-1], 2, 1), nn.Tanh())
         self.w_gen = nn.Sequential(nn.Conv1d(deconv_channels[-1], 1, 1), nn.Sigmoid())
@@ -127,7 +173,7 @@ class BezierGenerator(nn.Module):
         self.n_control_points = n_control_points
         self.n_data_points = n_data_points
 
-        self.feature_generator = FeatureGenerator(in_features, m_features, feature_gen_layers)
+        self.feature_generator = MLP(in_features, m_features, feature_gen_layers)
         self.cpw_generator = CPWGenerator(in_features, n_control_points, dense_layers, deconv_channels)
         self.bezier_layer = layers.BezierLayer(m_features, n_control_points, n_data_points)
     
@@ -141,52 +187,6 @@ class BezierGenerator(nn.Module):
         return 'in_features={}, n_control_points={}, n_data_points={}'.format(
             self.in_features, self.n_control_points, self.n_data_points
         )
-
-class Conv1DNetworks(nn.Module):
-    """The 1D convolutional front end.
-
-    Args:
-        in_channels: The number of channels of each input feature.
-        in_features: The number of input features.
-        conv_channels: The number of channels of each conv1d layer.
-
-    Shape:
-        - Input: `(N, C, H_in)` where C = in_channel and H_in = in_features.
-        - Output: `(N, H_out)` where H_out is calculated based on in_features.
-    """
-    def __init__(
-        self, in_channels: int, in_features: int,
-        conv_channels: list = [64, 64*2, 64*4, 64*8, 64*16, 64*32]
-        ):
-        super().__init__()
-        self.in_channels = in_channels
-        self.in_features = in_features
-        self.m_features = self.calculate_m_features(conv_channels)
-        self.conv = self.build_conv(conv_channels)
-
-    def forward(self, input):
-        return self.conv(input)
-    
-    def calculate_m_features(self, channels):
-        n_l = len(channels)
-        m_features = self.in_features // (2 ** n_l) * channels[-1]
-        return m_features
-
-    def build_conv(self, channels):
-        conv = nn.Sequential()
-        for idx, (in_chnl, out_chnl) in enumerate(zip(
-            [self.in_channels] + channels[:-1], channels
-            )):
-            conv.add_module(
-                str(idx), layers.Conv1DCombo(
-                    in_chnl, out_chnl, 
-                    kernel_size=4, stride=2, padding=1
-                    )
-                )
-            conv.add_module(str(idx+1), nn.Flatten())
-            conv.add_module(str(idx+2), nn.BatchNorm1d(self.m_features))
-            conv.add_module(str(idx+3), nn.LeakyReLU(0.2))
-        return conv
 
 class OTInfoDiscriminator(Conv1DNetworks):
     """Discriminator for OT based GANs equiped with mutual information maximization.
@@ -212,11 +212,11 @@ class OTInfoDiscriminator(Conv1DNetworks):
         ):
         super().__init__(in_channels, in_features, conv_channels)
         self.critics = nn.Sequential(
-            FeatureGenerator(self.m_features, crt_layers[-1], crt_layers[:-1]),
+            MLP(self.m_features, crt_layers[-1], crt_layers[:-1]),
             nn.Linear(crt_layers[-1], n_critics)
         )
         self.latent_predictor = nn.Sequential(
-            FeatureGenerator(self.m_features, pred_layers[-1], pred_layers[:-1]),
+            MLP(self.m_features, pred_layers[-1], pred_layers[:-1]),
             nn.Linear(pred_layers[-1], latent_dim)
         )
     
