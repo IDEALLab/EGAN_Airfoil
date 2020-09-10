@@ -17,8 +17,7 @@ class MLP(nn.Module):
         - Output: `(N, H_out)` where H_out = out_features.
     """
     def __init__(
-        self, in_features: int, out_features:int, 
-        layer_width: list = [1024,],
+        self, in_features: int, out_features:int, layer_width: list, 
         combo = layers.LinearCombo
         ):
         super().__init__()
@@ -50,10 +49,7 @@ class Conv1DNetwork(nn.Module):
         - Input: `(N, C, H_in)` where C = in_channel and H_in = in_features.
         - Output: `(N, H_out)` where H_out is calculated based on in_features.
     """
-    def __init__(
-        self, in_channels: int, in_features: int,
-        conv_channels: list = [64, 64*2, 64*4, 64*8, 64*16, 64*32]
-        ):
+    def __init__(self, in_channels: int, in_features: int, conv_channels: list):
         super().__init__()
         self.in_channels = in_channels
         self.in_features = in_features
@@ -188,12 +184,44 @@ class BezierGenerator(nn.Module):
             self.in_features, self.n_control_points, self.n_data_points
         )
 
-class OTInfoDiscriminator(Conv1DNetwork):
+class Critics1D(Conv1DNetwork):
+    """Regular discriminator for GANs.
+
+    Args: 
+        in_channels: The number of channels of each input feature.
+        in_features: The number of input features.
+        n_critics: The number of critics.
+        conv_channels: The number of channels of each conv1d layer.
+        crt_layers: The widths of fully connected hidden layers of critics.
+
+    Shape:
+        - Input: `(N, C, H)` where C = in_channel and H = in_features.
+        - Output: `(N, NC)` where NC is the number of critics.
+    """
+    def __init__(
+        self, in_channels: int, in_features: int, n_critics: int, 
+        conv_channels: list, crt_layers: list
+        ):
+        super().__init__(in_channels, in_features, conv_channels=conv_channels)
+        self.n_critics = n_critics
+        self.critics = nn.Sequential(
+            MLP(self.m_features, crt_layers[-1], crt_layers[:-1]),
+            nn.Linear(crt_layers[-1], n_critics)
+        )
+
+    def forward(self, input):
+        x = super().forward(input)
+        critics = self.critics(x)
+        return critics
+
+class OTInfoDiscriminator1D(Critics1D):
     """Discriminator for OT based GANs equiped with mutual information maximization.
 
     Args: 
         in_channels: The number of channels of each input feature.
         in_features: The number of input features.
+        n_critics: The number of critics.
+        latent_dim: The number of latent variables
         conv_channels: The number of channels of each conv1d layer.
         crt_layers: The widths of fully connected hidden layers of critics.
         pred_layers: The widths of fully connected hidden layers of latent code predictor.
@@ -201,8 +229,8 @@ class OTInfoDiscriminator(Conv1DNetwork):
     Shape:
         - Input: `(N, C, H)` where C = in_channel and H = in_features.
         - Output: 
-            - Critics: `(N, NC)` where NC is the number of critics.
-            - Latent Code: `(N, NL)` where NL the number of latent variables.
+            - Critics: `(N, NC)` where NC = n_critics.
+            - Latent Code: `(N, NL)` where NL = latent_dim.
     """
     def __init__(
         self, in_channels: int, in_features: int, n_critics: int, latent_dim: int,
@@ -210,25 +238,22 @@ class OTInfoDiscriminator(Conv1DNetwork):
         crt_layers: list = [1024,],
         pred_layers: list = [512,]
         ):
-        super().__init__(in_channels, in_features, conv_channels)
-        self.critics = nn.Sequential(
-            MLP(self.m_features, crt_layers[-1], crt_layers[:-1]),
-            nn.Linear(crt_layers[-1], n_critics)
-        )
+        super().__init__(in_channels, in_features, n_critics, conv_channels, crt_layers)
+        self.latent_dim = latent_dim
         self.latent_predictor = nn.Sequential(
             MLP(self.m_features, pred_layers[-1], pred_layers[:-1]),
             nn.Linear(pred_layers[-1], latent_dim)
         )
     
     def forward(self, input):
-        x = super().forward(input)
+        x = self.conv(input)
         critics = self.critics(x)
         latent_code = self.latent_predictor(x)
         return critics, latent_code
 
 
 if __name__ == "__main__":
-    dis = OTInfoDiscriminator(2, 192, 2, 10)
+    dis = OTInfoDiscriminator1D(2, 192, 2, 10)
     b = torch.rand([50, 2, 192])
     c, l = dis(b)
     print(c.shape, l.shape)

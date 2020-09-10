@@ -16,7 +16,7 @@ class UIUCAirfoilDataset(Dataset):
     """
 
     def __init__(self, data_fname, N=192, k=3, D=20):
-        super(UIUCAirfoilDataset).__init__()
+        super().__init__()
         self.airfoils = np.load(data_fname).transpose((0, 2, 1))
         if (N, k, D) == (192, 3, 20):
             self.N = N; self.k = k; self.D = D
