@@ -38,6 +38,21 @@ class UIUCAirfoilDataset(Dataset):
             self.__len__(), self.N, self.k, self.D
         )
 
+class NoiseGenerator:
+    def __init__(self, batch: int, sizes: list=[4, 10], noise_type: list=['u', 'n']):
+        super().__init__()
+        self.batch = batch
+        self.sizes = sizes
+        self.noise_type = noise_type
+        
+    def __call__(self):
+        noises = []
+        for size, n_type in zip(self.sizes, self.noise_type):
+            if n_type == 'u':
+                noises.append(torch.rand(self.batch, size))
+            elif n_type == 'n':
+                noises.append(torch.randn(self.batch, size))
+        return torch.hstack(noises)
 
 if __name__ == '__main__':
     data_fname = './data/airfoil_interp.npy'
