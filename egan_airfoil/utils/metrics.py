@@ -47,15 +47,11 @@ def consistency(gen_func, latent_dim, bounds):
     n_points = 50 #number of points sampled on each line
     mean_cor = 0
     for i in range(n_eval):
-        c = sample_line(n_points, latent_dim, bounds) # sample on lines in latent space
+        c = sample_line(n_points, latent_dim, bounds)
+        X = gen_func(c).reshape((n_points, -1))
         dist_c = torch.norm(c - c[0], dim=1).numpy()
-
-        X = gen_func(c)
-        X = X.reshape((n_points, -1))
         dist_X = torch.norm(X - X[0], dim=1).numpy()
-        
         mean_cor += np.corrcoef(dist_c, dist_X)[0,1]
-        
     return mean_cor / n_eval
 
 def ci_cons(n, gen_func, latent_dim=2, bounds=(0.0, 1.0)):

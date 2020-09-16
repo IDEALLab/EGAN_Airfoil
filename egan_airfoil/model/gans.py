@@ -53,11 +53,10 @@ class GAN:
     def load(self, checkpoint):
         ckp = torch.load(os.path.join(self.save_dir, checkpoint))
         self.discriminator.load_state_dict(ckp['discriminator'])
-        self.discriminator.eval()
         self.generator.load_state_dict(ckp['generator'])
-        self.generator.eval()
         self.optimizer_D.load_state_dict(ckp['optimizer_D'])
         self.optimizer_G.load_state_dict(ckp['optimizer_G'])
+        self.discriminator.eval(); self.generator.eval()
     
     def generate(self, input):
         return first_element(self.generator(input))
@@ -87,12 +86,6 @@ class GAN:
                 self.save(epoch=epoch, noise=noise_gen)
 
 class EGAN(GAN):
-    def __init__(
-        self, generator: nn.Module, discriminator: nn.Module, 
-        name: str, save_dir: str, checkpoint: str=None
-        ):
-        super().__init__(generator, discriminator, name, save_dir, checkpoint)
-    
     def loss_D(self, batch, noise_gen, **kwargs):
         return -self.loss_G(batch, noise_gen)
     
@@ -119,12 +112,6 @@ class EGAN(GAN):
         return super()._report(epoch, epochs, batch, report_interval, **kwargs) # modify
 
 class InfoEGAN(EGAN):
-    def __init__(
-        self, generator: nn.Module, discriminator: nn.Module, 
-        name: str, save_dir: str, checkpoint: str=None
-        ):
-        super().__init__(generator, discriminator, name, save_dir, checkpoint)
-
     def loss_D(self, batch, noise_gen, **kwargs):
         noise = noise_gen(); latent_dim = noise_gen.sizes[0]
         fake = first_element(self.generator(noise))
@@ -140,28 +127,15 @@ class InfoEGAN(EGAN):
         return dual_loss + info_loss
 
 class BezierEGAN(InfoEGAN):
-    def __init__(
-        self, generator: nn.Module, discriminator: nn.Module, 
-        name: str, save_dir: str, checkpoint: str=None
-        ):
-        super().__init__(generator, discriminator, name, save_dir, checkpoint)
-    
-    def loss_D(self, batch, noise_gen, **kwargs):
-        noise = noise_gen(); latent_dim = noise_gen.sizes[0]
-        fake, cp, w, pv, intvls = self.generator(noise)
-        dual_loss = self.dual_loss(batch, fake)
-        info_loss = F.mse_loss(self.discriminator(fake)[1], noise[:, :latent_dim])
-        return -dual_loss + info_loss
-    
     def loss_G(self, batch, noise_gen, **kwargs):
         noise = noise_gen(); latent_dim = noise_gen.sizes[0]
         fake, cp, w, pv, intvls = self.generator(noise)
         dual_loss = self.dual_loss(batch, fake)
         info_loss = F.mse_loss(self.discriminator(fake)[1], noise[:, :latent_dim])
-        reg_loss = self.regularizor(cp, w, pv, intvls)
+        reg_loss = self.regularizer(cp, w, pv, intvls)
         return dual_loss + info_loss + 10 * reg_loss
     
-    def regularizor(self, cp, w, pv, intvls):
+    def regularizer(self, cp, w, pv, intvls):
         w_loss = torch.mean(w[:, 1:-1])
         cp_loss = torch.norm(cp[:, :, 1:] - cp[:, :, :-1], dim=1).mean()
         end_loss = torch.pairwise_distance(cp[:, :, 0], cp[:, :, -1]).mean()
