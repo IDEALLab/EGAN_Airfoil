@@ -21,14 +21,14 @@ from scipy.integrate import cumtrapz
 
 
 def interpolate(Q, N, k, D=20, resolution=1000):
-    r'''Interpolate N points whose concentration is based on curvature. 
+    r"""Interpolate N points whose concentration is based on curvature. 
 
     Args:
-        Q: Dataset.
-        N: Number of data points.
+        Q: Existing points to be interpolated.
+        N: Number of data points to produce.
         k: Degree of spline.
         D: Shifting constant. The higher the more uniform the data points are.
-    '''
+    """
     tck, u = splprep(Q, u=None, k=k, s=1e-6, per=0, full_output=0)
     uu = np.linspace(u.min(), u.max(), resolution)
     x, y = splev(uu, tck, der=0)

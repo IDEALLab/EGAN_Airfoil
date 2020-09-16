@@ -36,17 +36,18 @@ class GAN:
 
     def _epoch_hook(self, epoch, epochs, **kwargs): pass
 
-    def _epoch_report(self, epoch, epochs, batch, **kwargs):
-        print('[Epoch {}/{}] D loss: {:d}, G loss: {:d}'.format(
-            epoch, epochs, loss_D(batch), loss_G(batch)))
+    def _epoch_report(self, epoch, epochs, batch, report_interval, **kwargs):
+        if epoch % report_interval == 0:
+            print('[Epoch {}/{}] D loss: {:d}, G loss: {:d}'.format(
+                epoch, epochs, loss_D(batch), loss_G(batch)))
 
     def save(self, **kwargs):
         torch.save({
-            'records': kwargs,
             'discriminator': self.discriminator.state_dict(),
             'generator': self.generator.state_dict(),
             'optimizer_D': self.optimizer_D.state_dict(),
-            'optimizer_G': self.optimizer_G.state_dict()
+            'optimizer_G': self.optimizer_G.state_dict(),
+            'records': kwargs
             }, os.path.join(self.save_dir, self.name+str(kwargs['epoch'])+'.tar'))
 
     def load(self, checkpoint):
@@ -57,6 +58,9 @@ class GAN:
         self.generator.eval()
         self.optimizer_D.load_state_dict(ckp['optimizer_D'])
         self.optimizer_G.load_state_dict(ckp['optimizer_G'])
+    
+    def generate(self, input):
+        return first_element(self.generator(input))
 
     def train(
         self, dataloader, noise_gen, epochs, num_iter_D=5, num_iter_G=1, report_interval=5,
@@ -77,12 +81,10 @@ class GAN:
                     self.loss_G(batch, noise_gen, **kwargs).backward()
                     self.optimizer_G.step()
                 self._batch_report(i, batch, **kwargs)
-            
-            if epoch % report_interval == 0:
-                self._epoch_report(epoch, epochs, batch, **kwargs)
+            self._epoch_report(epoch, epochs, batch, report_interval, **kwargs)
 
             if save_iter_list and epoch in save_iter_list:
-                self.save(epoch=epoch)
+                self.save(epoch=epoch, noise=noise_gen)
 
 class EGAN(GAN):
     def __init__(
@@ -113,8 +115,8 @@ class EGAN(GAN):
         if epoch == 0:
             self.lamb = kwargs['lamb']
 
-    def _epoch_report(self, epoch, epochs, batch, **kwargs):
-        return super()._report(epoch, epochs, batch) # modify
+    def _epoch_report(self, epoch, epochs, batch, report_interval, **kwargs):
+        return super()._report(epoch, epochs, batch, report_interval, **kwargs) # modify
 
 class InfoEGAN(EGAN):
     def __init__(
@@ -166,5 +168,5 @@ class BezierEGAN(InfoEGAN):
         reg_loss = w_loss + cp_loss + end_loss
         return reg_loss
     
-    def _epoch_report(self, epoch, epochs, batch, **kwargs):
-        return super()._report(epoch, epochs, batch) # modify
+    def _epoch_report(self, epoch, epochs, batch, report_interval, **kwargs):
+        return super()._report(epoch, epochs, batch, report_interval, **kwargs) # modify
