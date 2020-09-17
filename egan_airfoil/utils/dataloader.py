@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import math
 from torch.utils.data import DataLoader, Dataset
 from interpolation import interpolate
 
@@ -39,11 +40,12 @@ class UIUCAirfoilDataset(Dataset):
         )
 
 class NoiseGenerator:
-    def __init__(self, batch: int, sizes: list=[4, 10], noise_type: list=['u', 'n']):
+    def __init__(self, batch: int, sizes: list=[4, 10], noise_type: list=['u', 'n'], output_prob: bool=False):
         super().__init__()
         self.batch = batch
         self.sizes = sizes
         self.noise_type = noise_type
+        self.output_prob = output_prob
         
     def __call__(self):
         noises = []
@@ -52,11 +54,22 @@ class NoiseGenerator:
                 noises.append(torch.rand(self.batch, size))
             elif n_type == 'n':
                 noises.append(torch.randn(self.batch, size))
-        return torch.hstack(noises)
+        if self.output_prob:
+            return torch.cat(noises, dim=1), self._cal_prob(noises)
+        else:
+            return torch.cat(noises, dim=1)
+    
+    def _cal_prob(self, noises):
+        n_noise = torch.cat([noises[i] for i, n_t in enumerate(self.noise_type) if n_t == 'n'], dim=1)
+        d = n_noise.shape[1]
+        return (2 * math.pi) ** (-d / 2) * torch.exp(-torch.norm(n_noise, dim=1, keepdim=True) / 2)
 
 if __name__ == '__main__':
-    data_fname = './data/airfoil_interp.npy'
-    dataset = UIUCAirfoilDataset(data_fname)
-    print(dataset)
-    dataloader = DataLoader(dataset, 128)
-    print(list(dataloader)[0].shape)
+    ng = NoiseGenerator(128, output_prob=True)
+    noise, prob = ng()
+    print(noise.shape, prob)
+    #data_fname = './data/airfoil_interp.npy'
+    #dataset = UIUCAirfoilDataset(data_fname)
+    #print(dataset)
+    #dataloader = DataLoader(dataset, 128)
+    #print(list(dataloader)[0].shape)

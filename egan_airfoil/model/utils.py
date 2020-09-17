@@ -16,7 +16,7 @@ def strong_convex_func(x, lamb, useHingedL2=False):
         func = torch.exp(x / lamb) / torch.exp(1.) * lamb
     return func
 
-def strong_convex_func_normalized(x, lamb, useHingedL2=False): # without lamb
+def strong_convex_func_normalized(x, lamb, useHingedL2=False):
     if useHingedL2:
         func = (torch.maximum(x, 0) ** 2) / 2.
     else:

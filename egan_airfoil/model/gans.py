@@ -25,12 +25,19 @@ class GAN:
             self.load(os.path.join(save_dir, checkpoint))
     
     def loss_G(self, batch, noise_gen, **kwargs):
-        loss = None
-        return loss
+        return F.binary_cross_entropy_with_logits(
+            self.discriminator(self.generate(noise_gen())), 
+            torch.ones(len(batch), 1)
+            )
     
     def loss_D(self, batch, noise_gen, **kwargs):
-        loss = None
-        return loss
+        return F.binary_cross_entropy_with_logits(
+            self.discriminator(batch), 
+            torch.ones(len(batch), 1)
+            ) + F.binary_cross_entropy_with_logits(
+            self.discriminator(self.generate(noise_gen())), 
+            torch.zeros(len(batch), 1)
+            )
     
     def _batch_hook(self, i, batch, **kwargs): pass
     
@@ -60,23 +67,24 @@ class GAN:
         self.optimizer_G.load_state_dict(ckp['optimizer_G'])
         self.discriminator.eval(); self.generator.eval()
     
-    def generate(self, noise):
-        return first_element(self.generator(noise))
+    def generate(self, noise, additional_info=False):
+        if additional_info:
+            return self.generator(noise)
+        else: 
+            return first_element(self.generator(noise))
 
     def train(
         self, dataloader, noise_gen, epochs, num_iter_D=5, num_iter_G=1, report_interval=5,
         save_iter_list=[100,], **kwargs
-        ): # the noise generator should also be something like the dataloader.
+        ):
         for epoch in range(epochs):
             self._epoch_hook(epoch, epochs, **kwargs)
             for i, batch in enumerate(dataloader):
                 self._batch_hook(i, batch)
-                # Train discriminator
                 for _ in range(num_iter_D):
                     self.optimizer_D.zero_grad()
                     self.loss_D(batch, noise_gen, **kwargs).backward()
                     self.optimizer_D.step()
-                # Train generator
                 for _ in range(num_iter_G):
                     self.optimizer_G.zero_grad()
                     self.loss_G(batch, noise_gen, **kwargs).backward()
@@ -96,50 +104,38 @@ class EGAN(GAN):
         return -self.loss_G(batch, noise_gen)
     
     def loss_G(self, batch, noise_gen, **kwargs):
-        fake = first_element(self.generator(noise_gen()))
+        fake = self.generate(noise_gen())
         loss = self.dual_loss(batch, fake)
         return loss
-        
+
     def dual_loss(self, real, fake):
-        d_r = first_element(self.discriminator(real))[:, 0]
-        d_f = first_element(self.discriminator(fake))[:, 1]
-
-        emd = torch.mean(d_r) - torch.mean(d_f) # E[D1] - E[D2]
-        v = torch.squeeze(d_r.unsqueeze(0) - d_f.unsqueeze(1)) \
-            - cross_distance(real, fake) # v(y,^y) grid across different y and ^y. Should add one argument to choose distance functions.
+        v, d_r, d_f = self._cal_v(real, fake)
         smooth = strong_convex_func(v, lamb=self.lamb).mean()
-        return emd - smooth
-    
-    def _estimate_probs(self, noise, fake, test):
-        """
-        Estimate P(x|y=y_test) in 4.3
-        """
-        # unnormalized density
-        p_x = torch.exp(torch.diag(-0.5 * np.dot(noise, noise.T))) # [batch, 1] Gaussian P(x) unnormalized. 
-        # Probability of x of every entry in a batch. Should be modified to be compatible with infogan.
+        return d_r.mean() - d_f.mean() - smooth
 
-        d_r = first_element(self.discriminator(test))[:, 0]
-        d_f = first_element(self.discriminator(fake))[:, 1]
-        v_star = (torch.squeeze(d_r.unsqueeze(0) - d_f.unsqueeze(1), dim=-1) \
-            - cross_distance(test, fake)) / self.lamb # [batch, n_test] term inside exp() of 4.3. 
-        exp_v = torch.exp(v_star - v_star.max(dim=0)) # [batch, n_test] avoid numerical instability.
+    def surrogate_ll(self, test, noise_gen):
+        noise, p_x = noise_gen(output_prob=True); fake = self.generate(noise)
+        prob = self._estimate_prob(test, fake, p_x) # [batch, n_test]
+        dist = cross_distance(test, fake) # [batch, n_test]
+        ep_dist = torch.sum(dist * prob, dim=0) # [n_test]
+        entropy = torch.sum(-prob * torch.log(prob + _eps), dim=0) # [n_test]
+        ep_lpx = torch.sum(torch.log(p_x) * prob, dim=0) # [n_test]
+        surrogate_ll = -1 / self.lamb * ep_dist + entropy + ep_lpx # [n_test] log likelihood surrogate 2.7  
+        return surrogate_ll
+    
+    def _cal_v(self, real, fake):
+        d_r = first_element(self.discriminator(real))[:, 0] # [r_batch, 1]
+        d_f = first_element(self.discriminator(fake))[:, 1] # [f_batch, 1]
+        v = torch.squeeze(d_r.unsqueeze(0) - d_f.unsqueeze(1), dim=-1) \
+            - cross_distance(real, fake) # [f_batch, r_batch] v(y,^y) grid across different y and ^y. Should add one argument to choose distance functions.
+        return v, d_r, d_f
+
+    def _estimate_prob(self, test, fake, p_x):
+        v_star, _, _ = self._cal_v(test, fake) # [batch, n_test] term inside exp() of 4.3. 
+        exp_v = torch.exp((v_star - v_star.max(dim=0)) / self.lamb) # [batch, n_test] avoid numerical instability.
         prob = p_x * exp_v # [batch, n_test] unnormalized 4.3
         return prob / prob.sum(dim=0) # [batch, n_test] normalize over x to obtain 4.3 P(x|y)
 
-    def compute_LL(self, test, noise_gen):
-        noise = noise_gen(); fake = self.generate(noise)
-        prob = self._estimate_probs(noise, fake, test) # [batch, n_test] P(x|y)
-        
-        dist = cross_distance(test, fake) # [batch, n_test]
-        e_dist = torch.sum(dist * prob, dim=0) # [n_test] expectation of dist
-        ent = torch.sum(-prob * torch.log(prob + _eps), dim=0) # [n_test] entropy
-
-        e_norm = torch.sum(-0.5 * (noise**2).sum(dim=1, keepdim=True) * prob, dim=0) # [n_test] expectation of norm. Should this be L2 for all dimension?
-        # computing likelihood of the latent variable? Should be modified to accommodate uniformly distributed latent variables
-
-        lower_bound = -1 / self.lamb * (e_dist - self.lamb * ent) + e_norm # [n_test] log likelihood lower bound 2.7  
-        return lower_bound 
-    
     def _epoch_hook(self, epoch, epochs, **kwargs):
         if epoch == 0:
             self.lamb = kwargs['lamb']
@@ -150,14 +146,14 @@ class EGAN(GAN):
 class InfoEGAN(EGAN):
     def loss_D(self, batch, noise_gen, **kwargs):
         noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
-        fake = first_element(self.generator(noise))
+        fake = self.generate(noise)
         dual_loss = self.dual_loss(batch, fake)
         info_loss = self.info_loss(fake, latent_code)
         return -dual_loss + info_loss
     
     def loss_G(self, batch, noise_gen, **kwargs):
         noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
-        fake = first_element(self.generator(noise))
+        fake = self.generate(noise)
         dual_loss = self.dual_loss(batch, fake)
         info_loss = self.info_loss(fake, latent_code)
         return dual_loss + info_loss
