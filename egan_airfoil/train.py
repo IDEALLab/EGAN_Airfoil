@@ -1,13 +1,13 @@
 #%%
-class A:
-    def __init__(self):
-        super().__init__()
-        self.a = 10
-        print('sb')
+from torch.utils.tensorboard import SummaryWriter
+import numpy as np
 
-class B(A):
-    def b(self):
-        pass
+writer = SummaryWriter()
 
-x = B()
-x.__init__()
+for n_iter in range(100):
+    writer.add_scalar('Loss/train', np.random.random(), n_iter)
+    writer.add_scalar('Loss/test', np.random.random(), n_iter)
+    writer.add_scalar('Accuracy/train', np.random.random(), n_iter)
+    writer.add_scalar('Accuracy/test', np.random.random(), n_iter)
+
+# %%
