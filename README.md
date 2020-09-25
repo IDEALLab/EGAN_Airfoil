@@ -11,6 +11,7 @@ Bezier GAN's application to UIUC airfoil database realized within the framework 
 * Scipy 1.5.2
 
 ## Scripts
+
 * **train**: _Training algorithm where all elements developed are assembled._
 * **models**
   * **layers**: _Elementary PyTorch modules to be embedded in cmpnts._
