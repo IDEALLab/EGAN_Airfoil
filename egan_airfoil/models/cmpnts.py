@@ -144,6 +144,9 @@ class BezierGenerator(nn.Module):
     Args:
         in_features: The number of input features.
         n_control_points: The number of control point and weights to be output.
+        n_data_points: The number of data points to output.
+        m_features: The number of intermediate features for generating intervals.
+        feature_gen_layer: The widths of hidden layers for generating intermediate features.
         dense_layers: The widths of the hidden layers of the MLP connecting 
             input features and deconvolutional layers.
         deconv_channels: The number of channels deconvolutional layers have.
