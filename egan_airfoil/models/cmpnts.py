@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import torch.nn as nn
-import layers
+from . import layers
 
 class MLP(nn.Module):
     """Regular fully connected network generating features.

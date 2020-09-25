@@ -2,7 +2,7 @@ import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utils import strong_convex_func, cross_distance, first_element
+from .utils import strong_convex_func, cross_distance, first_element
 
 _eps = 1e-7
 
@@ -19,7 +19,7 @@ class GAN:
         self.optimizer_G = torch.optim.Adam(
             self.generator.parameters(), lr=2e-4, betas=(0.5, 0.99))
         self.optimizer_D = torch.optim.Adam(
-            self.critics.parameters(), lr=2e-4, betas=(0.5, 0.99))
+            self.discriminator.parameters(), lr=2e-4, betas=(0.5, 0.99))
         if checkpoint:
             self.load(os.path.join(save_dir, checkpoint))
     
