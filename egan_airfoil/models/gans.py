@@ -2,7 +2,6 @@ import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from cmpnts import BezierGenerator, OTInfoDiscriminator1D
 from utils import strong_convex_func, cross_distance, first_element
 
 _eps = 1e-7
