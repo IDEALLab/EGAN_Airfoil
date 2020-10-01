@@ -13,14 +13,14 @@ def strong_convex_func(x, lamb, useHingedL2=False):
     if useHingedL2:
         func = (torch.maximum(x, 0) ** 2) / lamb / 2.
     else:
-        func = torch.exp(x / lamb) / torch.exp(1.) * lamb
+        func = torch.exp(x / lamb) / torch.exp(torch.ones(1)) * lamb
     return func
 
 def strong_convex_func_normalized(x, lamb, useHingedL2=False):
     if useHingedL2:
         func = (torch.maximum(x, 0) ** 2) / 2.
     else:
-        func = torch.exp(x / lamb) / torch.exp(1.)
+        func = torch.exp(x / lamb) / torch.exp(torch.ones(1))
     return func
 
 def sum_probs_func(x, lamb):

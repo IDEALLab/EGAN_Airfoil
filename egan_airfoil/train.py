@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
     batch = 32
     epochs = 10
-    save_iter_list = np.linspace(1, 20, dtype=int) * 500 - 1
+    save_iter_list = list(np.linspace(1, 20, dtype=int) * 500 - 1)
 
     dataloader = DataLoader(UIUCAirfoilDataset(data_fname), batch)
     noise_gen = NoiseGenerator(batch, sizes=cz)

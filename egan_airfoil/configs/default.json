@@ -3,7 +3,7 @@
         "in_channels": 2, 
         "in_features": 192, 
         "n_critics": 2, 
-        "latent_dim": 13,
+        "latent_dim": 3,
         "conv_channels": [64, 128, 256, 512, 1024, 2048],
         "crt_layers": [1024],
         "pred_layers": [512]

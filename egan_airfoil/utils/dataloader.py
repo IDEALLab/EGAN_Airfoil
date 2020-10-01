@@ -18,7 +18,7 @@ class UIUCAirfoilDataset(Dataset):
 
     def __init__(self, data_fname, N=192, k=3, D=20):
         super().__init__()
-        self.airfoils = np.load(data_fname).transpose((0, 2, 1))
+        self.airfoils = np.load(data_fname).transpose((0, 2, 1)).astype('float32')
         if (N, k, D) == (192, 3, 20):
             self.N = N; self.k = k; self.D = D
         else:
@@ -26,7 +26,7 @@ class UIUCAirfoilDataset(Dataset):
 
     def refresh(self, N, k, D):
         self.N = N; self.k = k; self.D = D
-        self.airfoils = np.array([interpolate(airfoil, N, k, D) for airfoil in self.airfoils])
+        self.airfoils = np.array([interpolate(airfoil, N, k, D) for airfoil in self.airfoils]).astype('float32')
     
     def __getitem__(self, index):
         return self.airfoils[index]
@@ -65,11 +65,11 @@ class NoiseGenerator:
         return (2 * math.pi) ** (-d / 2) * torch.exp(-torch.norm(n_noise, dim=1, keepdim=True) / 2)
 
 if __name__ == '__main__':
-    ng = NoiseGenerator(128, output_prob=True)
-    noise, prob = ng()
-    print(noise.shape, prob)
-    #data_fname = './data/airfoil_interp.npy'
-    #dataset = UIUCAirfoilDataset(data_fname)
-    #print(dataset)
-    #dataloader = DataLoader(dataset, 128)
-    #print(list(dataloader)[0].shape)
+    # ng = NoiseGenerator(128, output_prob=True)
+    # noise, prob = ng()
+    # print(noise.shape, prob)
+    data_fname = '../data/airfoil_interp.npy'
+    dataset = UIUCAirfoilDataset(data_fname)
+    print(dataset)
+    dataloader = DataLoader(dataset, 128)
+    print(list(dataloader)[0])
