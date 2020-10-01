@@ -16,9 +16,13 @@ class UIUCAirfoilDataset(Dataset):
         Output: `(N, D, DP)` where D is the dimension of each point and DP is the number of data points.
     """
 
-    def __init__(self, data_fname, N=192, k=3, D=20):
+    def __init__(self, data_fname, N=192, k=3, D=20, device='cpu'):
         super().__init__()
-        self.airfoils = np.load(data_fname).transpose((0, 2, 1)).astype('float32')
+        self.device = device
+        self.airfoils = torch.tensor(
+            np.load(data_fname).transpose((0, 2, 1)).astype('float32'), 
+            device=device
+        )
         if (N, k, D) == (192, 3, 20):
             self.N = N; self.k = k; self.D = D
         else:
@@ -26,7 +30,10 @@ class UIUCAirfoilDataset(Dataset):
 
     def refresh(self, N, k, D):
         self.N = N; self.k = k; self.D = D
-        self.airfoils = np.array([interpolate(airfoil, N, k, D) for airfoil in self.airfoils]).astype('float32')
+        self.airfoils = torch.tensor(
+            np.array([interpolate(airfoil, N, k, D) for airfoil in self.airfoils]).astype('float32'),
+            device=self.device
+        )
     
     def __getitem__(self, index):
         return self.airfoils[index]
@@ -40,12 +47,13 @@ class UIUCAirfoilDataset(Dataset):
         )
 
 class NoiseGenerator:
-    def __init__(self, batch: int, sizes: list=[4, 10], noise_type: list=['u', 'n'], output_prob: bool=False):
+    def __init__(self, batch: int, sizes: list=[4, 10], noise_type: list=['u', 'n'], output_prob: bool=False, device='cpu'):
         super().__init__()
         self.batch = batch
         self.sizes = sizes
         self.noise_type = noise_type
         self.output_prob = output_prob
+        self.device = device
         
     def __call__(self):
         noises = []
@@ -55,9 +63,9 @@ class NoiseGenerator:
             elif n_type == 'n':
                 noises.append(torch.randn(self.batch, size))
         if self.output_prob:
-            return torch.cat(noises, dim=1), self._cal_prob(noises)
+            return torch.cat(noises, dim=1).to(self.device), self._cal_prob(noises).to(self.device)
         else:
-            return torch.cat(noises, dim=1)
+            return torch.cat(noises, dim=1).to(self.device)
     
     def _cal_prob(self, noises):
         n_noise = torch.cat([noises[i] for i, n_t in enumerate(self.noise_type) if n_t == 'n'], dim=1)

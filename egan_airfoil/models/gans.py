@@ -175,7 +175,7 @@ class BezierEGAN(InfoEGAN):
         return dual_loss + info_loss + 10 * reg_loss
     
     def regularizer(self, cp, w, pv, intvls):
-        w_loss = torch.mean(w[:, 1:-1])
+        w_loss = torch.mean(w[:, :, 1:-1])
         cp_loss = torch.norm(cp[:, :, 1:] - cp[:, :, :-1], dim=1).mean()
         end_loss = torch.pairwise_distance(cp[:, :, 0], cp[:, :, -1]).mean()
         reg_loss = w_loss + cp_loss + end_loss

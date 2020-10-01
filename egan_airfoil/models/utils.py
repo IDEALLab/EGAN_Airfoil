@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import math
 
 def cross_distance(x, y, diag=False, useCosineDist=False):
     x = x.reshape([len(x), -1]); y = y.reshape([len(y), -1])
@@ -13,14 +14,14 @@ def strong_convex_func(x, lamb, useHingedL2=False):
     if useHingedL2:
         func = (torch.maximum(x, 0) ** 2) / lamb / 2.
     else:
-        func = torch.exp(x / lamb) / torch.exp(torch.ones(1)) * lamb
+        func = torch.exp(x / lamb) / math.exp(1) * lamb
     return func
 
 def strong_convex_func_normalized(x, lamb, useHingedL2=False):
     if useHingedL2:
         func = (torch.maximum(x, 0) ** 2) / 2.
     else:
-        func = torch.exp(x / lamb) / torch.exp(torch.ones(1))
+        func = torch.exp(x / lamb) / math.exp(1)
     return func
 
 def sum_probs_func(x, lamb):
