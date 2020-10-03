@@ -25,21 +25,25 @@ def assemble_new_gan(dis_cfg, gen_cfg, egan_cfg, save_dir, device='cpu'):
     return egan
 
 if __name__ == '__main__':
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    batch = 32
+    epochs = 200
 
     dis_cfg, gen_cfg, egan_cfg, cz = read_configs('default')
     data_fname = '../data/airfoil_interp.npy'
     save_dir = '../saves/airfoil_dup'
     os.makedirs(save_dir, exist_ok=True)
+    save_iter_list = list(np.linspace(1, 10, dtype=int) * 20 - 1)
+
+    # build entropic gan on the device specified
     egan = assemble_new_gan(dis_cfg, gen_cfg, egan_cfg, save_dir, device=device)
 
-    batch = 32
-    epochs = 100
-    save_iter_list = list(np.linspace(1, 20, dtype=int) * 500 - 1)
-
-    dataloader = DataLoader(UIUCAirfoilDataset(data_fname, device=device), batch)
+    # build dataloader and noise generator on the device specified
+    dataloader = DataLoader(UIUCAirfoilDataset(data_fname, device=device), batch_size=batch, shuffle=True)
     noise_gen = NoiseGenerator(batch, sizes=cz, device=device)
-    
+
+    # build tensorboard summary writer
     writer = SummaryWriter(
         os.path.join(
             save_dir, 'runs', datetime.now().strftime('%b%d_%H-%M-%S')
@@ -48,6 +52,8 @@ if __name__ == '__main__':
 
     egan.train(
         epochs=epochs,
+        num_iter_D=5, 
+        num_iter_G=1,
         dataloader=dataloader, 
         noise_gen=noise_gen, 
         tb_writer=writer,
