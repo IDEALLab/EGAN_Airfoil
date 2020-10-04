@@ -32,8 +32,9 @@ if __name__ == '__main__':
 
     dis_cfg, gen_cfg, egan_cfg, cz = read_configs('default')
     data_fname = '../data/airfoil_interp.npy'
-    save_dir = '../saves/airfoil_dup'
+    save_dir = '../saves/airfoil_dup3.5'
     os.makedirs(save_dir, exist_ok=True)
+    os.makedirs(os.path.join(save_dir, 'runs'), exist_ok=True)
     save_iter_list = list(np.linspace(1, 10, dtype=int) * 20 - 1)
 
     # build entropic gan on the device specified
@@ -52,7 +53,7 @@ if __name__ == '__main__':
 
     egan.train(
         epochs=epochs,
-        num_iter_D=5, 
+        num_iter_D=1, 
         num_iter_G=1,
         dataloader=dataloader, 
         noise_gen=noise_gen, 

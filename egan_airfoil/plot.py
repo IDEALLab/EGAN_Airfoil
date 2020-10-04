@@ -16,13 +16,14 @@ def load_generator(gen_cfg, save_dir, checkpoint, device='cpu'):
 if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    save_dir = '../saves/airfoil_dup'
+    save_dir = '../saves/airfoil_dup3.5'
     _, gen_cfg, _, cz = read_configs('default')
 
-    epoch = 200
+    epochs = [20, 40, 60, 80, 100, 120, 140, 160, 180, 200]
 
-    generator = load_generator(gen_cfg, save_dir, 'default{}.tar'.format(epoch-1), device=device)
-    noise_gen = NoiseGenerator(36, sizes=cz, device=device)
+    for epoch in epochs:
+        generator = load_generator(gen_cfg, save_dir, 'default{}.tar'.format(epoch-1), device=device)
+        noise_gen = NoiseGenerator(36, sizes=cz, device=device)
 
-    samples = generator(noise_gen())[0].cpu().detach().numpy().transpose([0, 2, 1])
-    plot_samples(None, samples, scale=1.0, scatter=False, symm_axis=None, lw=1.2, alpha=.7, c='k', fname='epoch {}'.format(epoch))
+        samples = generator(noise_gen())[0].cpu().detach().numpy().transpose([0, 2, 1])
+        plot_samples(None, samples, scale=1.0, scatter=False, symm_axis=None, lw=1.2, alpha=.7, c='k', fname='epoch {}'.format(epoch))
