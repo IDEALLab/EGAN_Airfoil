@@ -47,9 +47,7 @@ if __name__ == '__main__':
 
     # build tensorboard summary writer
     writer = SummaryWriter(
-        os.path.join(
-            save_dir, 'runs', datetime.now().strftime('%b%d_%H-%M-%S')
-            )
+        os.path.join(save_dir, 'runs', datetime.now().strftime('%b%d_%H-%M-%S'))
         )
     
     def epoch_plot(epoch, fake, *args, **kwargs):
@@ -65,5 +63,6 @@ if __name__ == '__main__':
         noise_gen=noise_gen, 
         tb_writer=writer,
         report_interval=1,
-        save_iter_list=save_iter_list
+        save_iter_list=save_iter_list,
+        plotting=epoch_plot
         )
