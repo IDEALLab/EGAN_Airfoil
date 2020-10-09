@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .utils import strong_convex_func, cross_distance, first_element
-from utils.shape_plot import plot_samples
+from ..utils.shape_plot import plot_samples
 
 _eps = 1e-7
 
@@ -168,16 +168,6 @@ class EGAN(GAN):
             else:
                 print('[Epoch {}/{}] Dual loss: {:d}'.format(
                     epoch, epochs, loss_G(batch, noise_gen)))
-    
-    # def _epoch_hook(self, epoch, epochs, noise_gen, tb_writer, **kwargs): pass
-        # if epoch < 1:
-        #     self.lamb = self._lamb * 2
-        # elif epoch < 2:
-        #     self.lamb = self._lamb * 2 * 0.8
-        # elif epoch < 4:
-        #     self.lamb = self._lamb * 2 * 0.8 * 0.8
-        # elif epoch < 7:
-        #     self.lamb = self._lamb
 
 class InfoEGAN(EGAN):
     def loss_D(self, batch, noise_gen, **kwargs):

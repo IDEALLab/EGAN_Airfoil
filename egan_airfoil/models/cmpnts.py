@@ -233,7 +233,7 @@ class OTInfoDiscriminator1D(Critics1D):
         - Input: `(N, C, H)` where C = in_channel and H = in_features.
         - Output: 
             - Critics: `(N, NC)` where NC = n_critics.
-            - Latent Code: `(N, NL)` where NL = latent_dim.
+            - Latent Code: `(N, NL, 2)` where NL = latent_dim.
     """
     def __init__(
         self, in_channels: int, in_features: int, n_critics: int, latent_dim: int,
