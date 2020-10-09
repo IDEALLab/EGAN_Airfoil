@@ -134,6 +134,48 @@ class InfoGAN(GAN):
         epsilon = (latent_code - q_mean) / (torch.exp(q_logstd) + _eps)
         return torch.mean(q_logstd + 0.5 * epsilon ** 2)
 
+class BezierGAN(InfoGAN):
+    def loss_G(self, batch, noise_gen, **kwargs):
+        noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
+        fake, cp, w, pv, intvls = self.generator(noise)
+        js_loss = self.js_loss_G(batch, fake)
+        info_loss = self.info_loss(fake, latent_code)
+        reg_loss = self.regularizer(cp, w, pv, intvls)
+        return js_loss + info_loss + 10 * reg_loss
+
+    def loss_D(self, batch, noise_gen, **kwargs):
+        noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
+        fake = self.generate(noise)
+        js_loss = self.js_loss_D(batch, fake)
+        info_loss = self.info_loss(fake, latent_code)
+        return js_loss + info_loss
+    
+    def regularizer(self, cp, w, pv, intvls):
+        w_loss = torch.mean(w[:, :, 1:-1])
+        cp_loss = torch.norm(cp[:, :, 1:] - cp[:, :, :-1], dim=1).mean()
+        end_loss = torch.pairwise_distance(cp[:, :, 0], cp[:, :, -1]).mean()
+        reg_loss = w_loss + cp_loss + end_loss
+        return reg_loss
+    
+    def _epoch_report(self, epoch, epochs, batch, noise_gen, report_interval, tb_writer, **kwargs):
+        if epoch % report_interval == 0:
+            noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
+            fake, cp, w, pv, intvls = self.generator(noise)
+            js_loss = self.js_loss_D(batch, fake)
+            info_loss = self.info_loss(fake, latent_code)
+            reg_loss = self.regularizer(cp, w, pv, intvls)
+            if tb_writer:
+                tb_writer.add_scalar('JS Loss', js_loss, epoch)
+                tb_writer.add_scalar('Info Loss', info_loss, epoch)
+                tb_writer.add_scalar('Regularization Loss', reg_loss, epoch)
+            else:
+                print('[Epoch {}/{}] JS loss: {:d}, Info loss: {:d}, Regularization loss: {:d}'.format(
+                    epoch, epochs,  js_loss, info_loss, reg_loss))
+            try: 
+                kwargs['plotting'](epoch, fake)
+            except:
+                pass
+
 class EGAN(GAN):
     def __init__(self, generator: nn.Module, discriminator: nn.Module, lamb: float, 
         opt_g_lr: float=1e-4, opt_g_betas: tuple=(0.5, 0.99),
@@ -195,22 +237,14 @@ class EGAN(GAN):
                 print('[Epoch {}/{}] Dual loss: {:d}'.format(
                     epoch, epochs, loss_G(batch, noise_gen)))
 
-class InfoEGAN(EGAN, InfoGAN):
+class BezierEGAN(EGAN, BezierGAN):
     def loss_D(self, batch, noise_gen, **kwargs):
         noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
         fake = self.generate(noise)
         dual_loss = self.dual_loss(batch, fake)
         info_loss = self.info_loss(fake, latent_code)
         return -dual_loss + info_loss
-    
-    def loss_G(self, batch, noise_gen, **kwargs):
-        noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
-        fake = self.generate(noise)
-        dual_loss = self.dual_loss(batch, fake)
-        info_loss = self.info_loss(fake, latent_code)
-        return dual_loss + info_loss
 
-class BezierEGAN(InfoEGAN):
     def loss_G(self, batch, noise_gen, **kwargs):
         noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
         fake, cp, w, pv, intvls = self.generator(noise)
@@ -218,13 +252,6 @@ class BezierEGAN(InfoEGAN):
         info_loss = self.info_loss(fake, latent_code)
         reg_loss = self.regularizer(cp, w, pv, intvls)
         return dual_loss + info_loss + 10 * reg_loss
-    
-    def regularizer(self, cp, w, pv, intvls):
-        w_loss = torch.mean(w[:, :, 1:-1])
-        cp_loss = torch.norm(cp[:, :, 1:] - cp[:, :, :-1], dim=1).mean()
-        end_loss = torch.pairwise_distance(cp[:, :, 0], cp[:, :, -1]).mean()
-        reg_loss = w_loss + cp_loss + end_loss
-        return reg_loss
     
     def _epoch_report(self, epoch, epochs, batch, noise_gen, report_interval, tb_writer, **kwargs):
         if epoch % report_interval == 0:
@@ -246,48 +273,6 @@ class BezierEGAN(InfoEGAN):
             else:
                 print('[Epoch {}/{}] Dual loss: {:d}, Info loss: {:d}, Regularization loss: {:d}'.format(
                     epoch, epochs,  d_r.mean() - d_f.mean() - smooth, info_loss, reg_loss))
-            try: 
-                kwargs['plotting'](epoch, fake)
-            except:
-                pass
-
-class BezierGAN(InfoGAN):
-    def loss_G(self, batch, noise_gen, **kwargs):
-        noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
-        fake, cp, w, pv, intvls = self.generator(noise)
-        js_loss = self.js_loss_G(batch, fake)
-        info_loss = self.info_loss(fake, latent_code)
-        reg_loss = self.regularizer(cp, w, pv, intvls)
-        return js_loss + info_loss + 10 * reg_loss
-
-    def loss_D(self, batch, noise_gen, **kwargs):
-        noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
-        fake = self.generate(noise)
-        js_loss = self.js_loss_D(batch, fake)
-        info_loss = self.info_loss(fake, latent_code)
-        return js_loss + info_loss
-    
-    def regularizer(self, cp, w, pv, intvls):
-        w_loss = torch.mean(w[:, :, 1:-1])
-        cp_loss = torch.norm(cp[:, :, 1:] - cp[:, :, :-1], dim=1).mean()
-        end_loss = torch.pairwise_distance(cp[:, :, 0], cp[:, :, -1]).mean()
-        reg_loss = w_loss + cp_loss + end_loss
-        return reg_loss
-    
-    def _epoch_report(self, epoch, epochs, batch, noise_gen, report_interval, tb_writer, **kwargs):
-        if epoch % report_interval == 0:
-            noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
-            fake, cp, w, pv, intvls = self.generator(noise)
-            js_loss = self.js_loss_D(batch, fake)
-            info_loss = self.info_loss(fake, latent_code)
-            reg_loss = self.regularizer(cp, w, pv, intvls)
-            if tb_writer:
-                tb_writer.add_scalar('JS Loss', js_loss, epoch)
-                tb_writer.add_scalar('Info Loss', info_loss, epoch)
-                tb_writer.add_scalar('Regularization Loss', reg_loss, epoch)
-            else:
-                print('[Epoch {}/{}] JS loss: {:d}, Info loss: {:d}, Regularization loss: {:d}'.format(
-                    epoch, epochs,  js_loss, info_loss, reg_loss))
             try: 
                 kwargs['plotting'](epoch, fake)
             except:
