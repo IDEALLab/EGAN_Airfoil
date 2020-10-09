@@ -245,13 +245,13 @@ class OTInfoDiscriminator1D(Critics1D):
         self.latent_dim = latent_dim
         self.latent_predictor = nn.Sequential(
             MLP(self.m_features, pred_layers[-1], pred_layers[:-1]),
-            nn.Linear(pred_layers[-1], latent_dim)
+            nn.Linear(pred_layers[-1], latent_dim * 2)
         )
     
     def forward(self, input):
         x = self.conv(input)
         critics = self.critics(x)
-        latent_code = self.latent_predictor(x)
+        latent_code = self.latent_predictor(x).reshape([-1, self.latent_dim, 2])
         return critics, latent_code
 
 

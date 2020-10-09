@@ -105,12 +105,11 @@ def plot_grid(points_per_axis, gen_func, d=2, bounds=(0.0, 1.0), scale=.8, scatt
         Z = gen_grid(2, points_per_axis, bounds[0], bounds[1]) # Generate a grid
         plot_synthesized(Z, gen_func, 2, scale, points_per_axis, scatter, symm_axis, fname, **kwargs)
     if d >= 3:
-        Z = np.ones((points_per_axis**2, d)) * (bounds[0]+bounds[1])/2
-        zgrid = np.linspace(bounds[0], bounds[1], points_per_axis)
+        Z = np.ones((points_per_axis**2, d)) * (bounds[0]+bounds[1])/2 # [N^2, 3]
+        zgrid = np.linspace(bounds[0], bounds[1], points_per_axis) # N
         for i in range(points_per_axis):
-            Zxy = gen_grid(2, points_per_axis, bounds[0], bounds[1]) # Generate a grid
-            Zz = np.ones((points_per_axis**2, 1)) * zgrid[i]
-            Z[:, :3] = np.hstack((Zxy, Zz)) # zero after 3rd dimension
+            Zxy = gen_grid(2, points_per_axis, bounds[0], bounds[1]) # Generate a grid [N^2, 2]
+            Zz = np.ones((points_per_axis**2, 1)) * zgrid[i] # [N^2, 1]
+            Z[:, :3] = np.hstack((Zxy, Zz)) # zero after 3rd dimension [N^2, 3] = [N^2, 2 + 1]
             plot_synthesized(Z, gen_func, 2, scale, points_per_axis, scatter, symm_axis, '%s_%.2f' % (fname, zgrid[i]), **kwargs)
         
-

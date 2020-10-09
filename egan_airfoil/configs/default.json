@@ -18,8 +18,12 @@
         "deconv_channels": [768, 384, 192, 96]
     },
     "egan": {
+        "name": "default",
         "lamb": 5, 
-        "name": "default"
+        "opt_g_lr": 2e-4, 
+        "opt_g_betas": [0.5, 0.99],
+        "opt_d_lr": 2e-4, 
+        "opt_d_betas": [0.5, 0.99]
     },
     "cz": [3, 10] 
 }

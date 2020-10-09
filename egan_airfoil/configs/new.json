@@ -1,0 +1,29 @@
+{
+    "dis": {
+        "in_channels": 2, 
+        "in_features": 192, 
+        "n_critics": 2, 
+        "latent_dim": 3,
+        "conv_channels": [64, 128, 256, 512, 1024, 2048],
+        "crt_layers": [4096, 512],
+        "pred_layers": [4096, 512]
+    },
+    "gen": {
+        "in_features": 13, 
+        "n_control_points": 32, 
+        "n_data_points": 192, 
+        "m_features": 256,
+        "feature_gen_layers": [1024],
+        "dense_layers": [1024],
+        "deconv_channels": [768, 384, 192, 96]
+    },
+    "egan": {
+        "name": "new",
+        "lamb": 0.01, 
+        "opt_g_lr": 2e-4, 
+        "opt_g_betas": [0.5, 0.99],
+        "opt_d_lr": 2e-4, 
+        "opt_d_betas": [0.5, 0.99]
+    },
+    "cz": [3, 10] 
+}
