@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader
 from models.cmpnts import OTInfoDiscriminator1D, BezierGenerator
 from models.gans import BezierGAN
 from utils.dataloader import UIUCAirfoilDataset, NoiseGenerator
+from utils.shape_plot import plot_samples
 
 def read_configs(name):
     with open(os.path.join('configs', name+'.json')) as f:
@@ -49,6 +50,12 @@ if __name__ == '__main__':
     writer = SummaryWriter(
         os.path.join(save_dir, 'runs', datetime.now().strftime('%b%d_%H-%M-%S'))
         )
+    
+    # define plotting program for certain epochs
+    def epoch_plot(epoch, fake, *args, **kwargs):
+        if (epoch + 1) % 10 == 0:
+            samples = fake.cpu().detach().numpy().transpose([0, 2, 1])
+            plot_samples(None, samples, scale=1.0, scatter=False, symm_axis=None, lw=1.2, alpha=.7, c='k', fname='epoch {}'.format(epoch+1))
 
     gan.train(
         epochs=epochs,
@@ -58,5 +65,6 @@ if __name__ == '__main__':
         noise_gen=noise_gen, 
         tb_writer=writer,
         report_interval=1,
-        save_iter_list=save_iter_list
+        save_iter_list=save_iter_list,
+        plotting=epoch_plot
         )

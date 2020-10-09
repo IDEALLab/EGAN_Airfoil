@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .utils import strong_convex_func, cross_distance, first_element
-from ..utils.shape_plot import plot_samples
 
 _eps = 1e-7
 
@@ -113,6 +112,28 @@ class GAN:
             if save_iter_list and epoch in save_iter_list:
                 self.save(epoch=epoch, noise=noise_gen)
 
+class InfoGAN(GAN):
+    def loss_G(self, batch, noise_gen, **kwargs):
+        noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
+        fake = self.generate(noise)
+        js_loss = self.js_loss_G(batch, fake)
+        info_loss = self.info_loss(fake, latent_code)
+        return js_loss + info_loss
+
+    def loss_D(self, batch, noise_gen, **kwargs):
+        noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
+        fake = self.generate(noise)
+        js_loss = self.js_loss_D(batch, fake)
+        info_loss = self.info_loss(fake, latent_code)
+        return js_loss + info_loss
+
+    def info_loss(self, fake, latent_code):
+        q = self.discriminator(fake)[1]
+        q_mean = q[:, :, 0]
+        q_logstd = q[:, :, 1]
+        epsilon = (latent_code - q_mean) / (torch.exp(q_logstd) + _eps)
+        return torch.mean(q_logstd + 0.5 * epsilon ** 2)
+
 class EGAN(GAN):
     def __init__(self, generator: nn.Module, discriminator: nn.Module, lamb: float, 
         opt_g_lr: float=1e-4, opt_g_betas: tuple=(0.5, 0.99),
@@ -120,7 +141,12 @@ class EGAN(GAN):
         name: str=None, save_dir: str=None, 
         checkpoint: str=None
         ):
-        super().__init__(generator, discriminator, name, save_dir, checkpoint=checkpoint)
+        super().__init__(
+            generator, discriminator, 
+            opt_g_lr=opt_g_lr, opt_g_betas=opt_g_betas,
+            opt_d_lr=opt_d_lr, opt_d_betas=opt_d_betas,
+            name=name, save_dir=save_dir, checkpoint=checkpoint
+            )
         self.lamb = lamb
         # self._lamb = lamb
 
@@ -168,18 +194,8 @@ class EGAN(GAN):
             else:
                 print('[Epoch {}/{}] Dual loss: {:d}'.format(
                     epoch, epochs, loss_G(batch, noise_gen)))
-    
-    # def _epoch_hook(self, epoch, epochs, noise_gen, tb_writer, **kwargs): pass
-        # if epoch < 1:
-        #     self.lamb = self._lamb * 2
-        # elif epoch < 2:
-        #     self.lamb = self._lamb * 2 * 0.8
-        # elif epoch < 4:
-        #     self.lamb = self._lamb * 2 * 0.8 * 0.8
-        # elif epoch < 7:
-        #     self.lamb = self._lamb
 
-class InfoEGAN(EGAN):
+class InfoEGAN(EGAN, InfoGAN):
     def loss_D(self, batch, noise_gen, **kwargs):
         noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
         fake = self.generate(noise)
@@ -193,13 +209,6 @@ class InfoEGAN(EGAN):
         dual_loss = self.dual_loss(batch, fake)
         info_loss = self.info_loss(fake, latent_code)
         return dual_loss + info_loss
-    
-    def info_loss(self, fake, latent_code):
-        q = self.discriminator(fake)[1]
-        q_mean = q[:, :, 0]
-        q_logstd = q[:, :, 1]
-        epsilon = (latent_code - q_mean) / (torch.exp(q_logstd) + _eps)
-        return torch.mean(q_logstd + 0.5 * torch.square(epsilon))
 
 class BezierEGAN(InfoEGAN):
     def loss_G(self, batch, noise_gen, **kwargs):
@@ -237,11 +246,10 @@ class BezierEGAN(InfoEGAN):
             else:
                 print('[Epoch {}/{}] Dual loss: {:d}, Info loss: {:d}, Regularization loss: {:d}'.format(
                     epoch, epochs,  d_r.mean() - d_f.mean() - smooth, info_loss, reg_loss))
-            if (epoch+1) % 10 == 0:
-                samples = fake.cpu().detach().numpy().transpose([0, 2, 1])
-                plot_samples(None, samples, scale=1.0, scatter=False, symm_axis=None, lw=1.2, alpha=.7, c='k', fname='epoch {}'.format(epoch+1))
+            if kwargs['plotting']:
+                kwargs['plotting'](epoch, batch, fake) 
 
-class BezierGAN(GAN):
+class BezierGAN(InfoGAN):
     def loss_G(self, batch, noise_gen, **kwargs):
         noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
         fake, cp, w, pv, intvls = self.generator(noise)
@@ -256,13 +264,6 @@ class BezierGAN(GAN):
         js_loss = self.js_loss_D(batch, fake)
         info_loss = self.info_loss(fake, latent_code)
         return js_loss + info_loss
-
-    def info_loss(self, fake, latent_code):
-        q = self.discriminator(fake)[1]
-        q_mean = q[:, :, 0]
-        q_logstd = q[:, :, 1]
-        epsilon = (latent_code - q_mean) / (torch.exp(q_logstd) + _eps)
-        return torch.mean(q_logstd + 0.5 * epsilon ** 2)
     
     def regularizer(self, cp, w, pv, intvls):
         w_loss = torch.mean(w[:, :, 1:-1])
@@ -285,6 +286,5 @@ class BezierGAN(GAN):
             else:
                 print('[Epoch {}/{}] JS loss: {:d}, Info loss: {:d}, Regularization loss: {:d}'.format(
                     epoch, epochs,  js_loss, info_loss, reg_loss))
-            if (epoch+1) % 10 == 0:
-                samples = fake.cpu().detach().numpy().transpose([0, 2, 1])
-                plot_samples(None, samples, scale=1.0, scatter=False, symm_axis=None, lw=1.2, alpha=.7, c='k', fname='epoch {}'.format(epoch+1))
+            if kwargs['plotting']:
+                kwargs['plotting'](epoch, batch, fake) 
