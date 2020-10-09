@@ -5,7 +5,7 @@ import os, json
 from datetime import datetime
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
-from models.cmpnts import OTInfoDiscriminator1D, BezierGenerator
+from models.cmpnts import InfoDiscriminator1D, BezierGenerator
 from models.gans import BezierEGAN
 from utils.dataloader import UIUCAirfoilDataset, NoiseGenerator
 from utils.shape_plot import plot_samples
@@ -20,7 +20,7 @@ def read_configs(name):
     return dis_cfg, gen_cfg, egan_cfg, cz
 
 def assemble_new_gan(dis_cfg, gen_cfg, egan_cfg, save_dir, device='cpu'):
-    discriminator = OTInfoDiscriminator1D(**dis_cfg).to(device)
+    discriminator = InfoDiscriminator1D(**dis_cfg).to(device)
     generator = BezierGenerator(**gen_cfg).to(device)
     egan = BezierEGAN(generator, discriminator, **egan_cfg, save_dir=save_dir)
     return egan

@@ -3,9 +3,10 @@ import numpy as np
 import os, json
 
 from datetime import datetime
+from sklearn.model_selection import train_test_split
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
-from models.cmpnts import OTInfoDiscriminator1D, BezierGenerator
+from models.cmpnts import InfoDiscriminator1D, BezierGenerator
 from models.gans import BezierGAN
 from utils.dataloader import UIUCAirfoilDataset, NoiseGenerator
 from utils.shape_plot import plot_samples
@@ -20,7 +21,7 @@ def read_configs(name):
     return dis_cfg, gen_cfg, gan_cfg, cz
 
 def assemble_new_gan(dis_cfg, gen_cfg, gan_cfg, save_dir, device='cpu'):
-    discriminator = OTInfoDiscriminator1D(**dis_cfg).to(device)
+    discriminator = InfoDiscriminator1D(**dis_cfg).to(device)
     generator = BezierGenerator(**gen_cfg).to(device)
     gan = BezierGAN(generator, discriminator, **gan_cfg, save_dir=save_dir)
     return gan
@@ -29,21 +30,26 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     batch = 32
-    epochs = 300
-    save_intvl = 20
+    epochs = 550
+    save_intvl = 25
 
     dis_cfg, gen_cfg, gan_cfg, cz = read_configs('vanilla')
     data_fname = '../data/airfoil_interp.npy'
-    save_dir = '../saves/airfoil_dup_v'
+    save_dir = '../saves/airfoil_dup_v_2'
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(os.path.join(save_dir, 'runs'), exist_ok=True)
+    
+    X_train, X_test = train_test_split(np.load(data_fname), train_size=0.8, shuffle=True)
+    np.save(os.path.join(save_dir, 'train.npy'), X_train)
+    np.save(os.path.join(save_dir, 'test.npy'), X_test)
+
     save_iter_list = list(np.linspace(1, epochs/save_intvl, dtype=int) * save_intvl - 1)
 
     # build entropic gan on the device specified
     gan = assemble_new_gan(dis_cfg, gen_cfg, gan_cfg, save_dir, device=device)
 
     # build dataloader and noise generator on the device specified
-    dataloader = DataLoader(UIUCAirfoilDataset(data_fname, device=device), batch_size=batch, shuffle=True)
+    dataloader = DataLoader(UIUCAirfoilDataset(X_train, device=device), batch_size=batch, shuffle=True)
     noise_gen = NoiseGenerator(batch, sizes=cz, device=device)
 
     # build tensorboard summary writer

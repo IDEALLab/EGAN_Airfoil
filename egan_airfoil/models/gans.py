@@ -9,8 +9,8 @@ _eps = 1e-7
 class GAN:
     def __init__(
         self, generator: nn.Module, discriminator: nn.Module, 
-        opt_g_lr: float=1e-4, opt_g_betas: tuple=(0.5, 0.99),
-        opt_d_lr: float=1e-4, opt_d_betas: tuple=(0.5, 0.99),
+        opt_g_lr: float=1e-4, opt_g_betas: tuple=(0.5, 0.99), opt_g_eps: float=1e-8,
+        opt_d_lr: float=1e-4, opt_d_betas: tuple=(0.5, 0.99), opt_d_eps: float=1e-8,
         name: str=None, save_dir: str=None, 
         checkpoint: str=None
         ):
@@ -20,7 +20,7 @@ class GAN:
         self.name = name
         self.save_dir = save_dir
         self.optimizer_G = torch.optim.Adam(
-            self.generator.parameters(), lr=opt_g_lr, betas=opt_g_betas)
+            self.generator.parameters(), lr=opt_g_lr, betas=opt_g_betas, eps=opt_g_eps)
         self.optimizer_D = torch.optim.Adam(
             self.discriminator.parameters(), lr=opt_d_lr, betas=opt_d_betas)
         if checkpoint:
@@ -142,13 +142,6 @@ class BezierGAN(InfoGAN):
         info_loss = self.info_loss(fake, latent_code)
         reg_loss = self.regularizer(cp, w, pv, intvls)
         return js_loss + info_loss + 10 * reg_loss
-
-    def loss_D(self, batch, noise_gen, **kwargs):
-        noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
-        fake = self.generate(noise)
-        js_loss = self.js_loss_D(batch, fake)
-        info_loss = self.info_loss(fake, latent_code)
-        return js_loss + info_loss
     
     def regularizer(self, cp, w, pv, intvls):
         w_loss = torch.mean(w[:, :, 1:-1])
@@ -178,19 +171,18 @@ class BezierGAN(InfoGAN):
 
 class EGAN(GAN):
     def __init__(self, generator: nn.Module, discriminator: nn.Module, lamb: float, 
-        opt_g_lr: float=1e-4, opt_g_betas: tuple=(0.5, 0.99),
-        opt_d_lr: float=1e-4, opt_d_betas: tuple=(0.5, 0.99),
+        opt_g_lr: float=1e-4, opt_g_betas: tuple=(0.5, 0.99), opt_g_eps: float=1e-8,
+        opt_d_lr: float=1e-4, opt_d_betas: tuple=(0.5, 0.99), opt_d_eps: float=1e-8,
         name: str=None, save_dir: str=None, 
         checkpoint: str=None
         ):
         super().__init__(
             generator, discriminator, 
-            opt_g_lr=opt_g_lr, opt_g_betas=opt_g_betas,
-            opt_d_lr=opt_d_lr, opt_d_betas=opt_d_betas,
+            opt_g_lr=opt_g_lr, opt_g_betas=opt_g_betas, opt_g_eps=opt_g_eps,
+            opt_d_lr=opt_d_lr, opt_d_betas=opt_d_betas, opt_d_eps=opt_d_eps,
             name=name, save_dir=save_dir, checkpoint=checkpoint
             )
         self.lamb = lamb
-        # self._lamb = lamb
 
     def loss_D(self, batch, noise_gen, **kwargs):
         return -self.loss_G(batch, noise_gen)

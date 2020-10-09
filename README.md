@@ -12,9 +12,10 @@ Bezier GAN's application to UIUC airfoil database realized within the framework 
 
 ## Scripts
 
-* **train**: _Training algorithm for entropic GAN._
+* **train_e**: _Training algorithm for entropic GAN._
 * **train_v**: _Training algorithm for vanilla Bezier-GAN._
 * **plot_latent**: _Plotting program for latent space examination._
+* **metrics_exam**: _Calculate metrics for the generator._
 * **models**
   * **layers**: _Elementary PyTorch modules to be embedded in cmpnts._
     * Bezier layer generating data points.
@@ -26,10 +27,9 @@ Bezier GAN's application to UIUC airfoil database realized within the framework 
   * **gans**: _Various GAN containers built on top of each other._
     * GAN: Trained with JS divergence.
     * InfoGAN: Child of GAN trained with additional mutual information maximization.
-    * EGAN: Child of GAN trained with entropic dual loss.
-    * InfoEGAN: Child of EGAN and InfoGAN.
     * BezierGAN: Child of InfoGAN trained with additional bezier curve regularization.
-    * BezierEGAN: Child of InfoEGAN trained with additional bezier curve regularization.
+    * EGAN: Child of GAN trained with entropic dual loss.
+    * BezierEGAN: Child of EGAN and BeizerGAN.
   * **utils**: _Miscellaneous tools_
 * **utils**
   * **dataloader**: _Data related tools for GAN's training process._
@@ -39,6 +39,9 @@ Bezier GAN's application to UIUC airfoil database realized within the framework 
   * **metrics**:
     * MMD
     * Consistency
+    * MLL
+    * RVOD
+    * Diversity
   * **shape_plot**: _Generate airfoil grids for demonstration._
 * **configs**
   * default: default configuration for Bezier-EGAN.

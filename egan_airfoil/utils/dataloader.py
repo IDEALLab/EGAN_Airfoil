@@ -8,7 +8,7 @@ class UIUCAirfoilDataset(Dataset):
     r"""UIUC Airfoil Dataset. 
 
     Args:
-        data_fname: Directory to the UIUC airfoil .npy file.
+        np_data: Dataset of numpy array format.
         N: Number of data points.
         k: Degree of spline.
         D: Shifting constant. The higher the more uniform the data points are.
@@ -16,12 +16,12 @@ class UIUCAirfoilDataset(Dataset):
         Output: `(N, D, DP)` where D is the dimension of each point and DP is the number of data points.
     """
 
-    def __init__(self, data_fname, N=192, k=3, D=20, device='cpu'):
+    def __init__(self, np_data, N=192, k=3, D=20, device='cpu'):
         super().__init__()
         self.device = device
         self.airfoils = torch.tensor(
-            np.load(data_fname).transpose((0, 2, 1)).astype('float32'), 
-            device=device
+            np_data.transpose((0, 2, 1)), 
+            device=device, dtype=torch.float32
         )
         if (N, k, D) == (192, 3, 20):
             self.N = N; self.k = k; self.D = D
@@ -71,13 +71,3 @@ class NoiseGenerator:
         n_noise = torch.cat([noises[i] for i, n_t in enumerate(self.noise_type) if n_t == 'n'], dim=1)
         d = n_noise.shape[1]
         return (2 * math.pi) ** (-d / 2) * torch.exp(-torch.norm(n_noise, dim=1, keepdim=True) / 2)
-
-if __name__ == '__main__':
-    # ng = NoiseGenerator(128, output_prob=True)
-    # noise, prob = ng()
-    # print(noise.shape, prob)
-    data_fname = '../data/airfoil_interp.npy'
-    dataset = UIUCAirfoilDataset(data_fname)
-    print(dataset)
-    dataloader = DataLoader(dataset, 128)
-    print(list(dataloader)[0])

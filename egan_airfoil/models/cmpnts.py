@@ -76,8 +76,6 @@ class Conv1DNetwork(nn.Module):
                     )
                 )
             conv.add_module(str(idx+1), nn.Flatten())
-            conv.add_module(str(idx+2), nn.BatchNorm1d(self.m_features))
-            conv.add_module(str(idx+3), nn.LeakyReLU(0.2))
         return conv
 
 class CPWGenerator(nn.Module):
@@ -217,8 +215,8 @@ class Critics1D(Conv1DNetwork):
         critics = self.critics(x)
         return critics
 
-class OTInfoDiscriminator1D(Critics1D):
-    """Discriminator for OT based GANs equiped with mutual information maximization.
+class InfoDiscriminator1D(Critics1D):
+    """Discriminator for GANs equiped with mutual information maximization.
 
     Args: 
         in_channels: The number of channels of each input feature.
@@ -253,15 +251,3 @@ class OTInfoDiscriminator1D(Critics1D):
         critics = self.critics(x)
         latent_code = self.latent_predictor(x).reshape([-1, self.latent_dim, 2])
         return critics, latent_code
-
-
-if __name__ == "__main__":
-    dis = OTInfoDiscriminator1D(2, 192, 2, 10)
-    b = torch.rand([50, 2, 192])
-    c, l = dis(b)
-    print(c.shape, l.shape)
-
-    #b_gen = BezierGenerator(10, 40, 192)
-    #b = torch.rand([50, 10])
-    #dp, cp, w, _, _ = b_gen(b)
-    #print(dp.shape, cp.shape, w.shape)
