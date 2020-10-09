@@ -246,7 +246,10 @@ class BezierEGAN(InfoEGAN):
             else:
                 print('[Epoch {}/{}] Dual loss: {:d}, Info loss: {:d}, Regularization loss: {:d}'.format(
                     epoch, epochs,  d_r.mean() - d_f.mean() - smooth, info_loss, reg_loss))
-            try: kwargs['plotting'](epoch, fake) 
+            try: 
+                kwargs['plotting'](epoch, fake)
+            except:
+                pass
 
 class BezierGAN(InfoGAN):
     def loss_G(self, batch, noise_gen, **kwargs):
@@ -285,4 +288,7 @@ class BezierGAN(InfoGAN):
             else:
                 print('[Epoch {}/{}] JS loss: {:d}, Info loss: {:d}, Regularization loss: {:d}'.format(
                     epoch, epochs,  js_loss, info_loss, reg_loss))
-            try: kwargs['plotting'](epoch, fake) 
+            try: 
+                kwargs['plotting'](epoch, fake)
+            except:
+                pass
