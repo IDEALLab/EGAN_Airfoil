@@ -199,7 +199,7 @@ class Critics1D(Conv1DNetwork):
 
     Shape:
         - Input: `(N, C, H)` where C = in_channel and H = in_features.
-        - Output: `(N, NC)` where NC is the number of critics.
+        - Output: `(N, NC, 2)` where NC is the number of critics.
     """
     def __init__(
         self, in_channels: int, in_features: int, n_critics: int, 

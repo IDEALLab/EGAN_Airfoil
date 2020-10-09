@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .utils import strong_convex_func, cross_distance, first_element
-from utils.shape_plot import plot_samples
+from ..utils.shape_plot import plot_samples
 
 _eps = 1e-7
 
