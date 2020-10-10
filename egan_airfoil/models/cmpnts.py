@@ -49,12 +49,15 @@ class Conv1DNetwork(nn.Module):
         - Input: `(N, C, H_in)` where C = in_channel and H_in = in_features.
         - Output: `(N, H_out)` where H_out is calculated based on in_features.
     """
-    def __init__(self, in_channels: int, in_features: int, conv_channels: list):
+    def __init__(
+        self, in_channels: int, in_features: int, conv_channels: list, 
+        combo = layers.Conv1DCombo
+        ):
         super().__init__()
         self.in_channels = in_channels
         self.in_features = in_features
         self.m_features = self._calculate_m_features(conv_channels)
-        self.conv = self._build_conv(conv_channels)
+        self.conv = self._build_conv(conv_channels, combo)
 
     def forward(self, input):
         return self.conv(input)
@@ -64,13 +67,13 @@ class Conv1DNetwork(nn.Module):
         m_features = self.in_features // (2 ** n_l) * channels[-1]
         return m_features
 
-    def _build_conv(self, channels):
+    def _build_conv(self, channels, combo):
         conv = nn.Sequential()
         for idx, (in_chnl, out_chnl) in enumerate(zip(
             [self.in_channels] + channels[:-1], channels
             )):
             conv.add_module(
-                str(idx), layers.Conv1DCombo(
+                str(idx), combo(
                     in_chnl, out_chnl, 
                     kernel_size=4, stride=2, padding=1
                     )
