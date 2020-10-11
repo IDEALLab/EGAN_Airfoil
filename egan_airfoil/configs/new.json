@@ -5,8 +5,8 @@
         "n_critics": 2, 
         "latent_dim": 3,
         "conv_channels": [64, 128, 256, 512, 1024, 2048],
-        "crt_layers": [4096, 512],
-        "pred_layers": [4096, 512]
+        "crt_layers": [1024],
+        "pred_layers": [1024, 128]
     },
     "gen": {
         "in_features": 13, 
@@ -17,13 +17,15 @@
         "dense_layers": [1024],
         "deconv_channels": [768, 384, 192, 96]
     },
-    "egan": {
+    "egan": { 
         "name": "new",
-        "lamb": 0.01, 
-        "opt_g_lr": 2e-4, 
+        "lamb": 15,
+        "opt_g_lr": 1e-4, 
         "opt_g_betas": [0.5, 0.99],
+        "opt_g_eps": 1e-7,
         "opt_d_lr": 2e-4, 
-        "opt_d_betas": [0.5, 0.99]
+        "opt_d_betas": [0.5, 0.99],
+        "opt_d_eps": 1e-7
     },
     "cz": [3, 10] 
 }

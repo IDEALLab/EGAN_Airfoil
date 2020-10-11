@@ -51,7 +51,8 @@ class Conv1DNetwork(nn.Module):
     """
     def __init__(
         self, in_channels: int, in_features: int, conv_channels: list,
-        combo = layers.Conv1DCombo):
+        combo = layers.Conv1DCombo
+        ):
         super().__init__()
         self.in_channels = in_channels
         self.in_features = in_features

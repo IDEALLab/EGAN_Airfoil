@@ -3,6 +3,7 @@ import numpy as np
 import os, json
 
 from datetime import datetime
+from sklearn.model_selection import train_test_split
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from models.cmpnts import InfoDiscriminator1D, BezierGenerator
@@ -31,7 +32,7 @@ if __name__ == '__main__':
     batch = 32
     epochs = 200
 
-    dis_cfg, gen_cfg, egan_cfg, cz = read_configs('modified')
+    dis_cfg, gen_cfg, egan_cfg, cz = read_configs('new')
     data_fname = '../data/airfoil_interp.npy'
     save_dir = '../saves/airfoil_dup7'
     os.makedirs(save_dir, exist_ok=True)
@@ -42,7 +43,10 @@ if __name__ == '__main__':
     egan = assemble_new_gan(dis_cfg, gen_cfg, egan_cfg, save_dir, device=device)
 
     # build dataloader and noise generator on the device specified
-    dataloader = DataLoader(UIUCAirfoilDataset(data_fname, device=device), batch_size=batch, shuffle=True)
+    X_train, X_test = train_test_split(np.load(data_fname), train_size=0.8, shuffle=True)
+    np.save(os.path.join(save_dir, 'train.npy'), X_train)
+    np.save(os.path.join(save_dir, 'test.npy'), X_test)
+    dataloader = DataLoader(UIUCAirfoilDataset(X_train, device=device), batch_size=batch, shuffle=True)
     noise_gen = NoiseGenerator(batch, sizes=cz, device=device)
 
     # build tensorboard summary writer
@@ -57,7 +61,7 @@ if __name__ == '__main__':
 
     egan.train(
         epochs=epochs,
-        num_iter_D=5, 
+        num_iter_D=2, 
         num_iter_G=1,
         dataloader=dataloader, 
         noise_gen=noise_gen, 
