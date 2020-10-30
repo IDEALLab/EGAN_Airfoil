@@ -88,6 +88,18 @@ class GAN:
             return self.generator(noise)
         else: 
             return first_element(self.generator(noise))
+    
+    def _update_D(self, num_iter_D, batch, noise_gen, **kwargs):
+        for _ in range(num_iter_D):
+            self.optimizer_D.zero_grad()
+            self.loss_D(batch, noise_gen, **kwargs).backward()
+            self.optimizer_D.step()
+    
+    def _update_G(self, num_iter_G, batch, noise_gen, **kwargs):
+        for _ in range(num_iter_G):
+            self.optimizer_G.zero_grad()
+            self.loss_G(batch, noise_gen, **kwargs).backward()
+            self.optimizer_G.step()
 
     def train(
         self, dataloader, noise_gen, epochs, num_iter_D=5, num_iter_G=1, report_interval=5,
@@ -97,15 +109,9 @@ class GAN:
             self._epoch_hook(epoch, epochs, noise_gen, tb_writer, **kwargs)
             for i, batch in enumerate(dataloader):
                 self._batch_hook(i, batch, noise_gen, tb_writer, **kwargs)
-                for _ in range(num_iter_D):
-                    self.optimizer_D.zero_grad()
-                    self.loss_D(batch, noise_gen, **kwargs).backward()
-                    self.optimizer_D.step()
+                self._update_D(num_iter_D, batch, noise_gen, **kwargs)
                 if not self._train_gen_criterion(batch, noise_gen, epoch): continue
-                for _ in range(num_iter_G):
-                    self.optimizer_G.zero_grad()
-                    self.loss_G(batch, noise_gen, **kwargs).backward()
-                    self.optimizer_G.step()
+                self._update_G(num_iter_G, batch, noise_gen, **kwargs)
                 self._batch_report(i, batch, noise_gen, tb_writer, **kwargs)
             self._epoch_report(epoch, epochs, batch, noise_gen, report_interval, tb_writer, **kwargs)
 
@@ -228,6 +234,13 @@ class EGAN(GAN):
             else:
                 print('[Epoch {}/{}] Dual loss: {:d}'.format(
                     epoch, epochs, loss_G(batch, noise_gen)))
+
+class SinkhornEGAN(EGAN):
+    def sinkhorn(self, x):
+        pass
+
+    def _update_D(self, x):
+        pass
 
 class BezierEGAN(EGAN, BezierGAN):
     def loss_D(self, batch, noise_gen, **kwargs):
