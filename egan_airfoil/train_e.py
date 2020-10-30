@@ -61,7 +61,7 @@ if __name__ == '__main__':
 
     egan.train(
         epochs=epochs,
-        num_iter_D=2, 
+        num_iter_D=3, 
         num_iter_G=1,
         dataloader=dataloader, 
         noise_gen=noise_gen, 

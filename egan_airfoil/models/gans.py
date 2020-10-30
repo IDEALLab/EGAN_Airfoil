@@ -240,10 +240,28 @@ class BezierEGAN(EGAN, BezierGAN):
     def loss_G(self, batch, noise_gen, **kwargs):
         noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
         fake, cp, w, pv, intvls = self.generator(noise)
-        _, _, d_f = self._cal_v(batch, fake) 
+        dual_loss = self.dual_loss(batch, fake)
+        #_, _, d_f = self._cal_v(batch, fake) 
         info_loss = self.info_loss(fake, latent_code)
         reg_loss = self.regularizer(cp, w, pv, intvls)
-        return -d_f.mean() + info_loss + 10 * reg_loss
+        return dual_loss + info_loss + 10 * reg_loss
+    
+    def _epoch_hook(self, epoch, epochs, noise_gen, tb_writer, **kwargs): 
+        if epoch == 0:
+            self._lamb = self.lamb
+            self.lamb = self._lamb * 50
+        elif epoch == 10:
+            self.lamb = self._lamb * 30
+        elif epoch == 20:
+            self.lamb = self._lamb * 20
+        elif epoch == 40:
+            self.lamb = self._lamb * 15
+        elif epoch == 50:
+            self.lamb = self._lamb * 10
+        elif epoch == 60:
+            self.lamb = self._lamb * 5
+        elif epoch == 70:
+            self.lamb = self._lamb * 1
     
     def _epoch_report(self, epoch, epochs, batch, noise_gen, report_interval, tb_writer, **kwargs):
         if epoch % report_interval == 0:

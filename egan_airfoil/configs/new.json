@@ -19,11 +19,11 @@
     },
     "egan": { 
         "name": "new",
-        "lamb": 15,
+        "lamb": 1,
         "opt_g_lr": 1e-4, 
         "opt_g_betas": [0.5, 0.99],
         "opt_g_eps": 1e-7,
-        "opt_d_lr": 2e-4, 
+        "opt_d_lr": 1e-4, 
         "opt_d_betas": [0.5, 0.99],
         "opt_d_eps": 1e-7
     },
