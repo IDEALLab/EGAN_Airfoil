@@ -127,7 +127,7 @@ def sym_sink(α_i, x_i, p=1, eps=.1, nits=100, tol=1e-3, assume_convergence=Fals
         W_i = (A_i + α_i_log).detach()
         S_x, _ = Sinkhorn_ops(p, ε, x_i.detach(), x_i)
 
-    a_x = ε * S_x( W_i ).view(-1) # a(x) = Smin_e,z~α [ C(x,z) - a(z) ]
+    a_x = ε * S_x(W_i).view(-1) # a(x) = Smin_e,z~α [ C(x,z) - a(z) ]
     return a_x
 
 

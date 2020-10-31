@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import os
 from models.cmpnts import BezierGenerator
-from train_v import read_configs
+from train_e import read_configs
 from utils.dataloader import NoiseGenerator
 from utils.metrics import ci_cons, ci_mll, ci_rsmth, ci_rdiv, ci_mmd
 
@@ -16,11 +16,11 @@ def load_generator(gen_cfg, save_dir, checkpoint, device='cpu'):
 if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    save_dir = '../saves/airfoil_dup_v_2'
+    save_dir = '../saves/sinkhorn'
     X = np.load('../data/airfoil_interp.npy')
     X_test = np.load(os.path.join(save_dir, 'test.npy'))
-    _, gen_cfg, _, cz = read_configs('vanilla')
-    generator = load_generator(gen_cfg, save_dir, 'vanilla549.tar', device=device)
+    _, gen_cfg, _, cz = read_configs('modified')
+    generator = load_generator(gen_cfg, save_dir, 'modified499.tar', device=device)
 
     def gen_func(latent, noise=None):
         if isinstance(latent, int):

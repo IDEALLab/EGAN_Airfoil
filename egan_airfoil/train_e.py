@@ -30,12 +30,12 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     batch = 32
-    epochs = 200
+    epochs = 500
     save_intvl = 20
 
     dis_cfg, gen_cfg, egan_cfg, cz = read_configs('modified')
     data_fname = '../data/airfoil_interp.npy'
-    save_dir = '../saves/sinkhorn'
+    save_dir = '../saves/sinkhorn2'
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(os.path.join(save_dir, 'runs'), exist_ok=True)
 
