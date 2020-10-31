@@ -3,10 +3,11 @@ import numpy as np
 import os, json
 
 from datetime import datetime
+from sklearn.model_selection import train_test_split
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from models.cmpnts import InfoDiscriminator1D, BezierGenerator
-from models.gans import BezierEGAN
+from models.gans import BezierEGAN, BezierSEGAN
 from utils.dataloader import UIUCAirfoilDataset, NoiseGenerator
 from utils.shape_plot import plot_samples
 
@@ -22,7 +23,7 @@ def read_configs(name):
 def assemble_new_gan(dis_cfg, gen_cfg, egan_cfg, save_dir, device='cpu'):
     discriminator = InfoDiscriminator1D(**dis_cfg).to(device)
     generator = BezierGenerator(**gen_cfg).to(device)
-    egan = BezierEGAN(generator, discriminator, **egan_cfg, save_dir=save_dir)
+    egan = BezierSEGAN(generator, discriminator, **egan_cfg, save_dir=save_dir)
     return egan
 
 if __name__ == '__main__':
@@ -30,19 +31,25 @@ if __name__ == '__main__':
 
     batch = 32
     epochs = 200
+    save_intvl = 20
 
     dis_cfg, gen_cfg, egan_cfg, cz = read_configs('modified')
     data_fname = '../data/airfoil_interp.npy'
-    save_dir = '../saves/airfoil_dup7'
+    save_dir = '../saves/sinkhorn'
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(os.path.join(save_dir, 'runs'), exist_ok=True)
-    save_iter_list = list(np.linspace(1, 10, dtype=int) * 20 - 1)
+
+    X_train, X_test = train_test_split(np.load(data_fname), train_size=0.8, shuffle=True)
+    np.save(os.path.join(save_dir, 'train.npy'), X_train)
+    np.save(os.path.join(save_dir, 'test.npy'), X_test)
+
+    save_iter_list = list(np.linspace(1, epochs/save_intvl, dtype=int) * save_intvl - 1)
 
     # build entropic gan on the device specified
     egan = assemble_new_gan(dis_cfg, gen_cfg, egan_cfg, save_dir, device=device)
 
     # build dataloader and noise generator on the device specified
-    dataloader = DataLoader(UIUCAirfoilDataset(data_fname, device=device), batch_size=batch, shuffle=True)
+    dataloader = DataLoader(UIUCAirfoilDataset(X_train, device=device), batch_size=batch, shuffle=True)
     noise_gen = NoiseGenerator(batch, sizes=cz, device=device)
 
     # build tensorboard summary writer
@@ -57,7 +64,7 @@ if __name__ == '__main__':
 
     egan.train(
         epochs=epochs,
-        num_iter_D=5, 
+        num_iter_D=1, 
         num_iter_G=1,
         dataloader=dataloader, 
         noise_gen=noise_gen, 

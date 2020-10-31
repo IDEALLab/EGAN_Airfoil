@@ -48,6 +48,8 @@ def Sinkhorn_ops(p, ε, x_i, y_j) :
         C_e = x_y.norm(dim=2) / ε
     elif p == 2: 
         C_e = (x_y ** 2).sum(2) / ε
+    elif p == 0:
+        C_e = x_y.norm(dim=2, p=1) / ε
     else:
         C_e = x_y.norm(dim=2) ** (p/2) / ε
     CT_e = C_e.t()
