@@ -237,12 +237,12 @@ class EGAN(GAN):
                     epoch, epochs, loss_G(batch, noise_gen)))
 
 class SinkhornEGAN(EGAN):
-    def sinkhorn_divergence(self, batch, fake, eps=5):
+    def sinkhorn_divergence(self, batch, fake):
         a = torch.ones(len(batch), 1, device=batch.device) / len(batch)
         b = torch.ones(len(fake), 1, device=fake.device) / len(fake)
         return sinkhorn_divergence(
             a, batch.view(len(batch), -1), b, fake.view(len(fake), -1), 
-            eps=eps, p=0, assume_convergence=True
+            eps=self.lamb, p=2, assume_convergence=True
             )
 
 class BezierEGAN(EGAN, BezierGAN):
@@ -296,7 +296,7 @@ class BezierSEGAN(SinkhornEGAN, BezierGAN):
     def loss_G(self, batch, noise_gen, **kwargs):
         noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
         fake, cp, w, pv, intvls = self.generator(noise)
-        sinkhorn_loss = self.sinkhorn_divergence(batch, fake, self.lamb)
+        sinkhorn_loss = self.sinkhorn_divergence(batch, fake)
         info_loss = self.info_loss(fake, latent_code)
         reg_loss = self.regularizer(cp, w, pv, intvls)
         return sinkhorn_loss + info_loss + 10 * reg_loss
@@ -305,7 +305,7 @@ class BezierSEGAN(SinkhornEGAN, BezierGAN):
         if epoch % report_interval == 0:
             noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
             fake, cp, w, pv, intvls = self.generator(noise)
-            sinkhorn_loss = self.sinkhorn_divergence(batch, fake, self.lamb)
+            sinkhorn_loss = self.sinkhorn_divergence(batch, fake)
             info_loss = self.info_loss(fake, latent_code)
             reg_loss = self.regularizer(cp, w, pv, intvls)
             if tb_writer:

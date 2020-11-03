@@ -34,14 +34,16 @@ if __name__ == '__main__':
     save_intvl = 20
 
     dis_cfg, gen_cfg, egan_cfg, cz = read_configs('modified')
-    data_fname = '../data/airfoil_interp.npy'
-    save_dir = '../saves/sinkhorn2'
+    # data_fname = '../data/airfoil_interp.npy'
+    data_fname = '../data/train.npy'
+    save_dir = '../saves/sinkhorn3'
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(os.path.join(save_dir, 'runs'), exist_ok=True)
 
-    X_train, X_test = train_test_split(np.load(data_fname), train_size=0.8, shuffle=True)
-    np.save(os.path.join(save_dir, 'train.npy'), X_train)
-    np.save(os.path.join(save_dir, 'test.npy'), X_test)
+    # X_train, X_test = train_test_split(np.load(data_fname), train_size=0.8, shuffle=True)
+    # np.save(os.path.join(save_dir, 'train.npy'), X_train)
+    # np.save(os.path.join(save_dir, 'test.npy'), X_test)
+    X_train = np.load(data_fname)
 
     save_iter_list = list(np.linspace(1, epochs/save_intvl, dtype=int) * save_intvl - 1)
 
