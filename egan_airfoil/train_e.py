@@ -55,15 +55,16 @@ if __name__ == '__main__':
     noise_gen = NoiseGenerator(batch, sizes=cz, device=device)
 
     # build tensorboard summary writer
-    writer = SummaryWriter(
-        os.path.join(save_dir, 'runs', datetime.now().strftime('%b%d_%H-%M-%S'))
-        )
+    tb_dir = os.path.join(save_dir, 'runs', datetime.now().strftime('%b%d_%H-%M-%S'))
+    writer = SummaryWriter(tb_dir)
     
     def epoch_plot(epoch, fake, *args, **kwargs):
         if (epoch + 1) % 10 == 0:
             samples = fake.cpu().detach().numpy().transpose([0, 2, 1])
-            plot_samples(None, samples, scale=1.0, scatter=False, symm_axis=None, lw=1.2, alpha=.7, c='k', 
-            fname=os.path.join(save_dir,'images','epoch {}'.format(epoch+1)))
+            plot_samples(
+                None, samples, scale=1.0, scatter=False, symm_axis=None, lw=1.2, alpha=.7, c='k', 
+                fname=os.path.join(tb_dir, 'images', 'epoch {}'.format(epoch+1))
+                )
 
     egan.train(
         epochs=epochs,
