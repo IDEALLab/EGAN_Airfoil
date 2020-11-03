@@ -36,7 +36,7 @@ if __name__ == '__main__':
     dis_cfg, gen_cfg, egan_cfg, cz = read_configs('modified')
     # data_fname = '../data/airfoil_interp.npy'
     data_fname = '../data/train.npy'
-    save_dir = '../saves/sinkhorn3'
+    save_dir = '../saves/test'
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(os.path.join(save_dir, 'runs'), exist_ok=True)
 
@@ -62,7 +62,8 @@ if __name__ == '__main__':
     def epoch_plot(epoch, fake, *args, **kwargs):
         if (epoch + 1) % 10 == 0:
             samples = fake.cpu().detach().numpy().transpose([0, 2, 1])
-            plot_samples(None, samples, scale=1.0, scatter=False, symm_axis=None, lw=1.2, alpha=.7, c='k', fname='epoch {}'.format(epoch+1))
+            plot_samples(None, samples, scale=1.0, scatter=False, symm_axis=None, lw=1.2, alpha=.7, c='k', 
+            fname=os.path.join(save_dir,'images','epoch {}'.format(epoch+1)))
 
     egan.train(
         epochs=epochs,

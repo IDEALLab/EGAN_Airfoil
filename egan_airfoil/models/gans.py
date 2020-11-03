@@ -242,7 +242,7 @@ class SinkhornEGAN(EGAN):
         b = torch.ones(len(fake), 1, device=fake.device) / len(fake)
         return sinkhorn_divergence(
             a, batch.view(len(batch), -1), b, fake.view(len(fake), -1), 
-            eps=self.lamb, p=2, assume_convergence=True
+            eps=self.lamb, p=0, assume_convergence=True
             )
 
 class BezierEGAN(EGAN, BezierGAN):
