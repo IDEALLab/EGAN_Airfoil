@@ -19,7 +19,7 @@
     },
     "egan": { 
         "name": "modified",
-        "lamb": 0.1,
+        "lamb": 30,
         "opt_g_lr": 1e-4, 
         "opt_g_betas": [0.5, 0.99],
         "opt_d_lr": 1e-4, 

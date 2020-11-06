@@ -31,13 +31,14 @@ if __name__ == '__main__':
 
     batch = 32
     epochs = 500
-    save_intvl = 20
+    save_intvl = 50
 
     dis_cfg, gen_cfg, egan_cfg, cz = read_configs('modified')
     # data_fname = '../data/airfoil_interp.npy'
     data_fname = '../data/train.npy'
-    save_dir = '../saves/test'
+    save_dir = '../saves/sinkhorn8'
     os.makedirs(save_dir, exist_ok=True)
+    os.makedirs(os.path.join(save_dir, 'runs'), exist_ok=True)
     os.makedirs(os.path.join(save_dir, 'runs'), exist_ok=True)
 
     # X_train, X_test = train_test_split(np.load(data_fname), train_size=0.8, shuffle=True)
@@ -56,6 +57,7 @@ if __name__ == '__main__':
 
     # build tensorboard summary writer
     tb_dir = os.path.join(save_dir, 'runs', datetime.now().strftime('%b%d_%H-%M-%S'))
+    os.makedirs(os.path.join(tb_dir, 'images'), exist_ok=True)
     writer = SummaryWriter(tb_dir)
     
     def epoch_plot(epoch, fake, *args, **kwargs):
