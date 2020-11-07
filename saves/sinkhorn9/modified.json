@@ -20,9 +20,9 @@
     "egan": { 
         "name": "modified",
         "lamb": 5,
-        "opt_g_lr": 3e-4, 
+        "opt_g_lr": 2e-4, 
         "opt_g_betas": [0.5, 0.99],
-        "opt_d_lr": 3e-4, 
+        "opt_d_lr": 2e-4, 
         "opt_d_betas": [0.5, 0.99]
     },
     "cz": [3, 10] 
