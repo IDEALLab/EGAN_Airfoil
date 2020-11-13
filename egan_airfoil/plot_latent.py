@@ -16,7 +16,7 @@ def load_generator(gen_cfg, save_dir, checkpoint, device='cpu'):
 if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    save_dir = '../saves/sinkhorn'
+    save_dir = '../saves/sinkhorn10'
     _, gen_cfg, _, cz = read_configs('modified')
 
     epochs = [500,]
@@ -36,4 +36,5 @@ if __name__ == '__main__':
                     ]), device=device, dtype=torch.float32)
 
             samples = generator(noise)[0].cpu().detach().numpy().transpose([0, 2, 1])
-            plot_samples(Z, samples, scale=1.0, scatter=False, symm_axis=None, lw=1.2, alpha=.7, c='k', fname='epoch {} {}'.format(epoch, i))
+            plot_samples(Z, samples, scale=1.0, scatter=False, symm_axis=None, lw=1.2, alpha=.7, 
+                c='k', fname=os.path.join(save_dir, 'epoch {} {}'.format(epoch, i)))
