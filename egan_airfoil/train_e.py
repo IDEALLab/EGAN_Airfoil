@@ -36,7 +36,7 @@ if __name__ == '__main__':
     dis_cfg, gen_cfg, egan_cfg, cz = read_configs('modified')
     # data_fname = '../data/airfoil_interp.npy'
     data_fname = '../data/train.npy'
-    save_dir = '../saves/sinkhorn10'
+    save_dir = '../saves/sinkhorn11'
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(os.path.join(save_dir, 'runs'), exist_ok=True)
 
