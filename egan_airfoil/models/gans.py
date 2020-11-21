@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .utils import strong_convex_func, cross_distance, first_element
-from .sinkhorn_balanced import sinkhorn_divergence
+from .sinkhorn_balanced import sinkhorn_divergence, regularized_ot
 
 _eps = 1e-7
 
@@ -209,18 +209,18 @@ class EGAN(GAN):
         ep_dist = (cross_distance(test, fake) * prob).sum(dim=0) # [n_test]
         entropy = (-prob * torch.log(prob + _eps)).sum(dim=0) # [n_test]
         ep_lpx = (torch.log(p_x) * prob).sum(dim=0) # [n_test]
-        return -ep_dist / self.lamb + entropy + ep_lpx # [n_test] log likelihood surrogate 2.7
+        return (-ep_dist / self.lamb + entropy + ep_lpx).unsqueeze(-1) # [n_test, 1] log likelihood surrogate 2.7
     
     def _cal_v(self, real, fake):
         d_r = first_element(self.discriminator(real))[:, 0] # [r_batch, 1]
         d_f = first_element(self.discriminator(fake))[:, 1] # [f_batch, 1]
         v = torch.squeeze(d_r.unsqueeze(0) - d_f.unsqueeze(1), dim=-1) \
-            - cross_distance(real, fake) # [f_batch, r_batch] v(y,^y) grid. Should add one argument to choose distance functions.
+            - cross_distance(real, fake) # [f_batch, r_batch] v(y,^y) grid.
         return v, d_r, d_f
 
     def _estimate_prob(self, test, fake, p_x):
         v_star, _, _ = self._cal_v(test, fake) # [batch, n_test] term inside exp() of 4.3. 
-        exp_v = torch.exp((v_star - v_star.max(dim=0)) / self.lamb) # [batch, n_test] avoid numerical instability.
+        exp_v = torch.exp((v_star - v_star.max(dim=0).values) / self.lamb) # [batch, n_test] avoid numerical instability.
         prob = p_x * exp_v # [batch, n_test] unnormalized 4.3
         return prob / prob.sum(dim=0) # [batch, n_test] normalize over x to obtain 4.3 P(x|y)
     
@@ -237,13 +237,41 @@ class EGAN(GAN):
                     epoch, epochs, loss_G(batch, noise_gen)))
 
 class SinkhornEGAN(EGAN):
-    def sinkhorn_divergence(self, batch, fake):
-        a = torch.ones(len(batch), 1, device=batch.device) / len(batch)
+    def loss_D(self, batch, noise_gen, **kwargs):
+        return torch.tensor(0, device=batch.device)
+    
+    def loss_G(self, batch, noise_gen, **kwargs):
+        fake = self.generate(noise_gen())
+        return self.sinkhorn_divergence(batch, fake)
+    
+    def dual_loss(self, real, fake):
+        a = torch.ones(len(real), 1, device=real.device) / len(real)
         b = torch.ones(len(fake), 1, device=fake.device) / len(fake)
-        return sinkhorn_divergence(
-            a, batch.view(len(batch), -1), b, fake.view(len(fake), -1), 
+        return regularized_ot(
+            a, real.view(len(real), -1), b, fake.view(len(fake), -1), 
             eps=self.lamb, p=0, assume_convergence=True
             )
+
+    def sinkhorn_divergence(self, real, fake):
+        a = torch.ones(len(real), 1, device=real.device) / len(real)
+        b = torch.ones(len(fake), 1, device=fake.device) / len(fake)
+        return sinkhorn_divergence(
+            a, real.view(len(real), -1), b, fake.view(len(fake), -1), 
+            eps=self.lamb, p=0, assume_convergence=True
+            )
+    
+    def _cal_v(self, real, fake):
+        a = torch.ones(len(real), 1, device=real.device) / len(real) # [r_batch, 1]
+        b = torch.ones(len(fake), 1, device=fake.device) / len(fake) # [r_batch, 1]
+        _, p_r, p_f = regularized_ot(
+            a, real.view(len(real), -1), b, fake.view(len(fake), -1), 
+            return_policy=True, eps=self.lamb, p=0, assume_convergence=True
+            ) # [r_batch], [f_batch]
+        v = p_r.unsqueeze(0) + p_f.unsqueeze(1) \
+            - cross_distance(real, fake) # [f_batch, r_batch]
+        return v, p_r, p_f
+    
+    def _train_gen_criterion(self, batch, noise_gen, epoch): return True
 
 class BezierEGAN(EGAN, BezierGAN):
     def loss_D(self, batch, noise_gen, **kwargs):
