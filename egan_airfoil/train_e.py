@@ -20,10 +20,10 @@ def read_configs(name):
         cz = configs['cz']
     return dis_cfg, gen_cfg, egan_cfg, cz
 
-def assemble_new_gan(dis_cfg, gen_cfg, egan_cfg, save_dir, device='cpu'):
+def assemble_new_gan(dis_cfg, gen_cfg, egan_cfg, device='cpu'):
     discriminator = InfoDiscriminator1D(**dis_cfg).to(device)
     generator = BezierGenerator(**gen_cfg).to(device)
-    egan = BezierSEGAN(generator, discriminator, **egan_cfg, save_dir=save_dir)
+    egan = BezierSEGAN(generator, discriminator, **egan_cfg)
     return egan
 
 if __name__ == '__main__':
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     dis_cfg, gen_cfg, egan_cfg, cz = read_configs('modified')
     # data_fname = '../data/airfoil_interp.npy'
     data_fname = '../data/train.npy'
-    save_dir = '../saves/sinkhorn11'
+    save_dir = '../saves/sinkhorn12'
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(os.path.join(save_dir, 'runs'), exist_ok=True)
 
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     save_iter_list = list(np.linspace(1, epochs/save_intvl, dtype=int) * save_intvl - 1)
 
     # build entropic gan on the device specified
-    egan = assemble_new_gan(dis_cfg, gen_cfg, egan_cfg, save_dir, device=device)
+    egan = assemble_new_gan(dis_cfg, gen_cfg, egan_cfg, device=device)
 
     # build dataloader and noise generator on the device specified
     dataloader = DataLoader(UIUCAirfoilDataset(X_train, device=device), batch_size=batch, shuffle=True)
@@ -75,6 +75,7 @@ if __name__ == '__main__':
         noise_gen=noise_gen, 
         tb_writer=writer,
         report_interval=1,
+        save_dir=save_dir,
         save_iter_list=save_iter_list,
         plotting=epoch_plot
         )

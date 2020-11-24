@@ -135,13 +135,10 @@ def sym_sink(α_i, x_i, p=1, eps=.1, nits=100, tol=1e-3, assume_convergence=Fals
 # Derived Functionals .....................................................................
 #######################################################################################################################
 
-def regularized_ot(α, x, β, y, return_policy=False, **params): # OT_ε
+def regularized_ot(α, x, β, y, **params): # OT_ε
     a_y, b_x = sink(α, x, β, y, **params)
     cost = scal(α, b_x) + scal(β, a_y)
-    if return_policy:
-        return cost, b_x, a_y
-    else:
-        return cost
+    return cost
 
 def sinkhorn_divergence(α, x, β, y, **params): # S_ε
     a_y, b_x = sink(α, x, β, y, **params)

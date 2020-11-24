@@ -20,10 +20,10 @@ def read_configs(name):
         cz = configs['cz']
     return dis_cfg, gen_cfg, gan_cfg, cz
 
-def assemble_new_gan(dis_cfg, gen_cfg, gan_cfg, save_dir, device='cpu'):
+def assemble_new_gan(dis_cfg, gen_cfg, gan_cfg, device='cpu'):
     discriminator = InfoDiscriminator1D(**dis_cfg).to(device)
     generator = BezierGenerator(**gen_cfg).to(device)
-    gan = BezierGAN(generator, discriminator, **gan_cfg, save_dir=save_dir)
+    gan = BezierGAN(generator, discriminator, **gan_cfg)
     return gan
 
 if __name__ == '__main__':
@@ -46,7 +46,7 @@ if __name__ == '__main__':
     save_iter_list = list(np.linspace(1, epochs/save_intvl, dtype=int) * save_intvl - 1)
 
     # build entropic gan on the device specified
-    gan = assemble_new_gan(dis_cfg, gen_cfg, gan_cfg, save_dir, device=device)
+    gan = assemble_new_gan(dis_cfg, gen_cfg, gan_cfg, device=device)
 
     # build dataloader and noise generator on the device specified
     dataloader = DataLoader(UIUCAirfoilDataset(X_train, device=device), batch_size=batch, shuffle=True)
@@ -71,6 +71,7 @@ if __name__ == '__main__':
         noise_gen=noise_gen, 
         tb_writer=writer,
         report_interval=1,
+        save_dir=save_dir,
         save_iter_list=save_iter_list,
         plotting=epoch_plot
         )
