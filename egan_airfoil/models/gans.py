@@ -212,7 +212,7 @@ class EGAN(GAN):
             ep_dist = (cross_distance(test, fake) * prob).sum(dim=0) # [n_test]
             entropy = (-prob * torch.log(prob + _eps)).sum(dim=0) # [n_test]
             ep_lpx = (torch.log(p_x) * prob).sum(dim=0) # [n_test]
-            ll[i] = (-ep_dist / self.lamb + entropy + ep_lpx) # [n_test] log likelihood surrogate 2.7
+            ll[i] = -ep_dist / self.lamb + entropy + ep_lpx # [n_test] log likelihood surrogate 2.7
         return ll
     
     def _cal_v(self, real, fake):
