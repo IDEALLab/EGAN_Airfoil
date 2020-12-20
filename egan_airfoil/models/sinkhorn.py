@@ -1,8 +1,8 @@
 #--------------------------------------------------------------------------------------------
 #    Key routines of this repository, where we implement the Sinkhorn algorithms on probability measures
 #
-# On top of the barebone algorithms, this file provides :
-# - Two backends : KeOps (efficient) and vanilla PyTorch (simple)
+# On top of the barebone algorithms, this file provides:
+# - Two backends: KeOps (efficient) and vanilla PyTorch (simple)
 # - Bypassing of the autograd mechanism, if we assume convergence in the Sinkhorn loop (2-3x speed). 
 # - Fancy visualizations in the background, through the Heatmaps class.
 # 
@@ -20,7 +20,7 @@ import torch
 # Elementary operations .....................................................................
 #######################################################################################################################
 
-def scal(α, f) :
+def scal(α, f):
     return torch.dot(α.view(-1), f.view(-1))
 
 def lse(v_ij):
@@ -28,7 +28,7 @@ def lse(v_ij):
     V_i = torch.max(v_ij, 1)[0].view(-1, 1)
     return V_i + (v_ij - V_i).exp().sum(1).log().view(-1, 1)
 
-def Sinkhorn_ops(p, ε, x_i, y_j) :
+def Sinkhorn_ops(p, ε, x_i, y_j): # need to modify
     """
     Given:
     - an exponent p = 1 or 2
@@ -67,7 +67,7 @@ def Sinkhorn_ops(p, ε, x_i, y_j) :
 def sink(α_i, x_i, β_j, y_j, p=1, eps=.1, nits=100, tol=1e-3, assume_convergence=False, **kwargs):
 
     ε = eps # Python supports Unicode. So fancy!
-    if type(nits) in [list, tuple] : nits = nits[0]  # The user may give different limits for Sink and SymSink
+    if type(nits) in [list, tuple]: nits = nits[0]  # The user may give different limits for Sink and SymSink
     # Sinkhorn loop with A = a/eps , B = b/eps ....................................................
     
     α_i_log, β_j_log = α_i.log(), β_j.log() # Precompute the logs of the measures' weights
@@ -84,13 +84,13 @@ def sink(α_i, x_i, β_j, y_j, p=1, eps=.1, nits=100, tol=1e-3, assume_convergen
             B_i = S_y(A_j + β_j_log)   # b(x)/ε = Smin_ε,y~β [ C(x,y) - a(y) ]  / ε
 
             err = ε * (B_i - B_i_prev).abs().mean() # Stopping criterion: L1 norm of the updates
-            if err.item() < tol : break
+            if err.item() < tol: break
 
     # One last step, which allows us to bypass PyTorch's backprop engine if required (as explained in the paper)
-    if not assume_convergence :
+    if not assume_convergence:
         A_j = S_x(B_i + α_i_log)
         B_i = S_y(A_j + β_j_log)
-    else : # Assume that we have converged, and can thus use the "exact" (and cheap!) gradient's formula
+    else: # Assume that we have converged, and can thus use the "exact" (and cheap!) gradient's formula
         S_x, _ = Sinkhorn_ops(p, ε, x_i.detach(), y_j)
         _, S_y = Sinkhorn_ops(p, ε, x_i, y_j.detach())
         A_j = S_x((B_i + α_i_log).detach())
@@ -103,7 +103,7 @@ def sink(α_i, x_i, β_j, y_j, p=1, eps=.1, nits=100, tol=1e-3, assume_convergen
 def sym_sink(α_i, x_i, p=1, eps=.1, nits=100, tol=1e-3, assume_convergence=False, **kwargs):
 
     ε = eps # Python supports Unicode. So fancy!
-    if type(nits) in [list, tuple] : nits = nits[1]  # The user may give different limits for Sink and SymSink
+    if type(nits) in [list, tuple]: nits = nits[1]  # The user may give different limits for Sink and SymSink
     # Sinkhorn loop ......................................................................
 
     α_i_log = α_i.log()
@@ -121,9 +121,9 @@ def sym_sink(α_i, x_i, p=1, eps=.1, nits=100, tol=1e-3, assume_convergence=Fals
             if err.item() < tol: break
 
     # One last step, which allows us to bypass PyTorch's backprop engine if required
-    if not assume_convergence :
+    if not assume_convergence:
         W_i = A_i + α_i_log
-    else :
+    else:
         W_i = (A_i + α_i_log).detach()
         S_x, _ = Sinkhorn_ops(p, ε, x_i.detach(), x_i)
 

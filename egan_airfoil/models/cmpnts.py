@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import torch.nn as nn
 from . import layers
+from .utils import first_element
 
 class MLP(nn.Module):
     """Regular fully connected network generating features.
@@ -254,3 +255,13 @@ class InfoDiscriminator1D(Critics1D):
         critics = self.critics(x)
         latent_code = self.latent_predictor(x).reshape([-1, self.latent_dim, 2])
         return critics, latent_code
+
+
+class AdaptiveCost(nn.Module):
+    def __init__(self, feature_gen):
+        super().__init__()
+        self.feature_gen = lambda x: first_element(feature_gen(x))
+    
+    def forward(self, x, y):
+        ft_x = self.feature_gen(x)
+        ft_y = self.feature_gen(y)
