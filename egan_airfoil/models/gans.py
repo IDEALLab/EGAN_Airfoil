@@ -18,10 +18,14 @@ class GAN:
         self.generator = generator
         self.discriminator = discriminator
         self.name = name
-        self.optimizer_G = torch.optim.Adam(
-            self.generator.parameters(), lr=opt_g_lr, betas=opt_g_betas, eps=opt_g_eps)
-        self.optimizer_D = torch.optim.Adam(
-            self.discriminator.parameters(), lr=opt_d_lr, betas=opt_d_betas)
+        self.optimizer_G = torch.optim.RMSprop(
+            self.generator.parameters(), lr=opt_g_lr, alpha=opt_g_betas[1], eps=opt_g_eps)
+        self.optimizer_D = torch.optim.RMSprop(
+            self.discriminator.parameters(), lr=opt_d_lr, alpha=opt_d_betas[1], eps=opt_g_eps)
+        # self.optimizer_G = torch.optim.Adam(
+        #     self.generator.parameters(), lr=opt_g_lr, betas=opt_g_betas, eps=opt_g_eps)
+        # self.optimizer_D = torch.optim.Adam(
+        #     self.discriminator.parameters(), lr=opt_d_lr, betas=opt_d_betas, eps=opt_g_eps)
         if checkpoint:
             self.load(checkpoint, train_mode)
     
@@ -180,7 +184,7 @@ class BezierGAN(InfoGAN):
 
 class EGAN(GAN):
     def __init__(self, generator: nn.Module, discriminator: nn.Module, lamb: float, 
-        cost_function=lambda x1, x2: torch.cdist(x1.flatten(1), x2.flatten(1), p=1),
+        cost_func=lambda x1, x2: torch.cdist(x1.flatten(1), x2.flatten(1), p=1),
         opt_g_lr: float=1e-4, opt_g_betas: tuple=(0.5, 0.99), opt_g_eps: float=1e-8,
         opt_d_lr: float=1e-4, opt_d_betas: tuple=(0.5, 0.99), opt_d_eps: float=1e-8,
         name: str=None, checkpoint: str=None, train_mode: bool=True
@@ -192,7 +196,7 @@ class EGAN(GAN):
             name=name, checkpoint=checkpoint, train_mode=train_mode
             )
         self.lamb = lamb
-        self.cost = cost_function
+        self.cost = cost_func
 
     def loss_D(self, batch, noise_gen, **kwargs):
         return -self.loss_G(batch, noise_gen)
@@ -234,44 +238,38 @@ class EGAN(GAN):
         _, d_r, d_f = self._cal_v(batch, self.generate(noise_gen()))
         return d_r.mean() - d_f.mean() > 0
 
-    def _epoch_report(self, epoch, epochs, batch, noise_gen, report_interval, tb_writer, **kwargs):
-        if epoch % report_interval == 0:
-            if tb_writer:
-                tb_writer.add_scalar('Dual Loss', loss_G(batch, noise_gen), epoch)
-            else:
-                print('[Epoch {}/{}] Dual loss: {:d}'.format(
-                    epoch, epochs, loss_G(batch, noise_gen)))
-
 class SinkhornEGAN(EGAN):
     def loss_D(self, batch, noise_gen, **kwargs):
-        return torch.tensor(0, device=batch.device)
+        return -self.cost(batch, self.generate(noise_gen())).mean() \
+            if isinstance(self.cost, nn.Module) \
+            else torch.tensor(0, device=batch.device)
     
     def loss_G(self, batch, noise_gen, **kwargs):
         fake = self.generate(noise_gen())
-        return self.sinkhorn_divergence(batch, fake)
+        return self.sinkhorn_divergence(batch, fake) 
     
     def dual_loss(self, real, fake):
         a = torch.ones(len(real), 1, device=real.device) / len(real)
         b = torch.ones(len(fake), 1, device=fake.device) / len(fake)
         return regularized_ot(
-            a, real.flatten(1), b, fake.flatten(1), 
-            eps=self.lamb, p=0, assume_convergence=True
+            a, real, b, fake, 
+            eps=self.lamb, assume_convergence=True, cost_func=self.cost
             )
 
     def sinkhorn_divergence(self, real, fake):
         a = torch.ones(len(real), 1, device=real.device) / len(real)
         b = torch.ones(len(fake), 1, device=fake.device) / len(fake)
         return sinkhorn_divergence(
-            a, real.flatten(1), b, fake.flatten(1), 
-            eps=self.lamb, p=0, assume_convergence=True
+            a, real, b, fake, 
+            eps=self.lamb, assume_convergence=True, cost_func=self.cost
             )
     
     def _cal_v(self, real, fake):
         a = torch.ones(len(real), 1, device=real.device) / len(real) # [r_batch, 1]
         b = torch.ones(len(fake), 1, device=fake.device) / len(fake) # [f_batch, 1]
         p_f, p_r = sink(
-            a, real.flatten(1), b, fake.flatten(1), 
-            eps=self.lamb, p=0, assume_convergence=True
+            a, real, b, fake, 
+            eps=self.lamb, assume_convergence=True, cost_func=self.cost
             ) # [f_batch], [r_batch]
         v = p_r.unsqueeze(1) + p_f.unsqueeze(0) \
             - self.cost(real, fake) # [r_batch, f_batch]
@@ -325,7 +323,10 @@ class BezierSEGAN(SinkhornEGAN, BezierGAN):
         noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
         fake = self.generate(noise)
         info_loss = self.info_loss(fake, latent_code)
-        return info_loss
+        cost_loss = -self.cost(batch, fake).mean() \
+            if isinstance(self.cost, nn.Module) \
+            else torch.tensor(0, device=batch.device)
+        return cost_loss #+ info_loss
 
     def loss_G(self, batch, noise_gen, **kwargs):
         noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]

@@ -13,22 +13,18 @@
 #
 #--------------------------------------------------------------------------------------------
 
-import numpy as np
 import torch
 
 #######################################################################################################################
 # Elementary operations .....................................................................
 #######################################################################################################################
 
-def scal(α, f):
-    return torch.dot(α.view(-1), f.view(-1))
-
 def lse(v_ij):
     """[lse(v_ij)]_i = log sum_j exp(v_ij), with numerical accuracy."""
     V_i = torch.max(v_ij, 1)[0].view(-1, 1)
     return V_i + (v_ij - V_i).exp().sum(1).log().view(-1, 1)
 
-def Sinkhorn_ops(p, ε, x_i, y_j): # need to modify
+def Sinkhorn_ops(ε, x_i, y_j, cost_func): 
     """
     Given:
     - an exponent p = 1 or 2
@@ -43,19 +39,10 @@ def Sinkhorn_ops(p, ε, x_i, y_j): # need to modify
     working with KeOps and Vanilla pytorch (with a pre-computed cost matrix) at the same time.
     """
     # We precompute the |x_i-y_j|^p matrix once and for all...
-    x_y = x_i.unsqueeze(1) - y_j.unsqueeze(0)
-    if p == 1: 
-        C_e = x_y.norm(dim=2) / ε
-    elif p == 2: 
-        C_e = (x_y ** 2).sum(2) / ε
-    elif p == 0:
-        C_e = x_y.norm(dim=2, p=1) / ε
-    else:
-        C_e = x_y.norm(dim=2) ** (p/2) / ε
-    CT_e = C_e.t()
+    C_e = cost_func(x_i, y_j) / ε
 
     # Before wrapping it up in a simple pair of operators - don't forget the minus!
-    S_x = lambda f_i: -lse(f_i.view(1, -1) - CT_e)
+    S_x = lambda f_i: -lse(f_i.view(1, -1) - C_e.T)
     S_y = lambda f_j: -lse(f_j.view(1, -1) - C_e)
     return S_x, S_y
 
@@ -64,7 +51,7 @@ def Sinkhorn_ops(p, ε, x_i, y_j): # need to modify
 # Sinkhorn iterations .....................................................................
 #######################################################################################################################
 
-def sink(α_i, x_i, β_j, y_j, p=1, eps=.1, nits=100, tol=1e-3, assume_convergence=False, **kwargs):
+def sink(α_i, x_i, β_j, y_j, cost_func, eps=.1, nits=100, tol=1e-3, assume_convergence=False, **kwargs):
 
     ε = eps # Python supports Unicode. So fancy!
     if type(nits) in [list, tuple]: nits = nits[0]  # The user may give different limits for Sink and SymSink
@@ -76,7 +63,7 @@ def sink(α_i, x_i, β_j, y_j, p=1, eps=.1, nits=100, tol=1e-3, assume_convergen
     # if we assume convergence, we can skip all the "save computational history" stuff
     # torch.set_grad_enabled(not assume_convergence)
     with torch.set_grad_enabled(not assume_convergence):
-        S_x, S_y = Sinkhorn_ops(p, ε, x_i, y_j) # Softmin operators (divided by ε, as it's slightly cheaper...)
+        S_x, S_y = Sinkhorn_ops(ε, x_i, y_j, cost_func) # Softmin operators (divided by ε, as it's slightly cheaper...)
         for i in range(nits-1):
             B_i_prev = B_i
 
@@ -91,8 +78,8 @@ def sink(α_i, x_i, β_j, y_j, p=1, eps=.1, nits=100, tol=1e-3, assume_convergen
         A_j = S_x(B_i + α_i_log)
         B_i = S_y(A_j + β_j_log)
     else: # Assume that we have converged, and can thus use the "exact" (and cheap!) gradient's formula
-        S_x, _ = Sinkhorn_ops(p, ε, x_i.detach(), y_j)
-        _, S_y = Sinkhorn_ops(p, ε, x_i, y_j.detach())
+        S_x, _ = Sinkhorn_ops(ε, x_i.detach(), y_j, cost_func)
+        _, S_y = Sinkhorn_ops(ε, x_i, y_j.detach(), cost_func)
         A_j = S_x((B_i + α_i_log).detach())
         B_i = S_y((A_j + β_j_log).detach())
 
@@ -100,7 +87,7 @@ def sink(α_i, x_i, β_j, y_j, p=1, eps=.1, nits=100, tol=1e-3, assume_convergen
     return a_y, b_x
 
 
-def sym_sink(α_i, x_i, p=1, eps=.1, nits=100, tol=1e-3, assume_convergence=False, **kwargs):
+def sym_sink(α_i, x_i, cost_func, eps=.1, nits=100, tol=1e-3, assume_convergence=False, **kwargs):
 
     ε = eps # Python supports Unicode. So fancy!
     if type(nits) in [list, tuple]: nits = nits[1]  # The user may give different limits for Sink and SymSink
@@ -108,7 +95,7 @@ def sym_sink(α_i, x_i, p=1, eps=.1, nits=100, tol=1e-3, assume_convergence=Fals
 
     α_i_log = α_i.log()
     A_i = torch.zeros_like(α_i)
-    S_x, _ = Sinkhorn_ops(p, ε, x_i, x_i) # Sinkhorn operator from x_i to x_i (divided by ε, as it's slightly cheaper...)
+    S_x, _ = Sinkhorn_ops(ε, x_i, x_i, cost_func) # Sinkhorn operator from x_i to x_i (divided by ε, as it's slightly cheaper...)
     
     # if we assume convergence, we can skip all the "save computational history" stuff
     with torch.set_grad_enabled(not assume_convergence):
@@ -125,7 +112,7 @@ def sym_sink(α_i, x_i, p=1, eps=.1, nits=100, tol=1e-3, assume_convergence=Fals
         W_i = A_i + α_i_log
     else:
         W_i = (A_i + α_i_log).detach()
-        S_x, _ = Sinkhorn_ops(p, ε, x_i.detach(), x_i)
+        S_x, _ = Sinkhorn_ops(ε, x_i.detach(), x_i, cost_func)
 
     a_x = ε * S_x(W_i).view(-1) # a(x) = Smin_e,z~α [ C(x,z) - a(z) ]
     return a_x
@@ -137,15 +124,13 @@ def sym_sink(α_i, x_i, p=1, eps=.1, nits=100, tol=1e-3, assume_convergence=Fals
 
 def regularized_ot(α, x, β, y, **params): # OT_ε
     a_y, b_x = sink(α, x, β, y, **params)
-    cost = scal(α, b_x) + scal(β, a_y)
-    return cost
+    return b_x @ α + a_y @ β
 
 def sinkhorn_divergence(α, x, β, y, **params): # S_ε
     a_y, b_x = sink(α, x, β, y, **params)
     a_x = sym_sink(α, x, **params)
     b_y = sym_sink(β, y, **params)
-    cost = scal(α, b_x - a_x) + scal(β, a_y - b_y)
-    return cost
+    return (b_x - a_x) @ α + (a_y - b_y) @ β
 
 
 

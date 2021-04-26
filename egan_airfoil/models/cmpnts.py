@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import torch.nn as nn
+import torch.nn.functional as F
 from . import layers
 from .utils import first_element
 
@@ -258,10 +259,12 @@ class InfoDiscriminator1D(Critics1D):
 
 
 class AdaptiveCost(nn.Module):
-    def __init__(self, feature_gen):
+    def __init__(self, feature_gen, p=2):
         super().__init__()
-        self.feature_gen = lambda x: first_element(feature_gen(x))
+        self.feature_gen = feature_gen
+        self.p = p
     
     def forward(self, x, y):
-        ft_x = self.feature_gen(x)
-        ft_y = self.feature_gen(y)
+        ft_x = first_element(self.feature_gen(x))
+        ft_y = first_element(self.feature_gen(y))
+        return torch.cdist(ft_x, ft_y, p=self.p)
