@@ -51,7 +51,7 @@ def Sinkhorn_ops(ε, x_i, y_j, cost_func):
 # Sinkhorn iterations .....................................................................
 #######################################################################################################################
 
-def sink(α_i, x_i, β_j, y_j, cost_func, eps=.1, nits=100, tol=1e-3, assume_convergence=False, **kwargs):
+def sink(α_i, x_i, β_j, y_j, cost_func, eps=.1, nits=1000, tol=1e-3, assume_convergence=False, **kwargs):
 
     ε = eps # Python supports Unicode. So fancy!
     if type(nits) in [list, tuple]: nits = nits[0]  # The user may give different limits for Sink and SymSink
@@ -78,8 +78,12 @@ def sink(α_i, x_i, β_j, y_j, cost_func, eps=.1, nits=100, tol=1e-3, assume_con
         A_j = S_x(B_i + α_i_log)
         B_i = S_y(A_j + β_j_log)
     else: # Assume that we have converged, and can thus use the "exact" (and cheap!) gradient's formula
-        S_x, _ = Sinkhorn_ops(ε, x_i.detach(), y_j, cost_func)
-        _, S_y = Sinkhorn_ops(ε, x_i, y_j.detach(), cost_func)
+        try:
+            S_x, _ = Sinkhorn_ops(ε, x_i.detach(), y_j, cost_func)
+            _, S_y = Sinkhorn_ops(ε, x_i, y_j.detach(), cost_func) # inspect the effect
+        except:
+            S_x, _ = Sinkhorn_ops(ε, [x.detach() for x in x_i], y_j, cost_func)
+            _, S_y = Sinkhorn_ops(ε, x_i, [y.detach() for y in y_j], cost_func)
         A_j = S_x((B_i + α_i_log).detach())
         B_i = S_y((A_j + β_j_log).detach())
 
@@ -87,7 +91,7 @@ def sink(α_i, x_i, β_j, y_j, cost_func, eps=.1, nits=100, tol=1e-3, assume_con
     return a_y, b_x
 
 
-def sym_sink(α_i, x_i, cost_func, eps=.1, nits=100, tol=1e-3, assume_convergence=False, **kwargs):
+def sym_sink(α_i, x_i, cost_func, eps=.1, nits=1000, tol=1e-3, assume_convergence=False, **kwargs):
 
     ε = eps # Python supports Unicode. So fancy!
     if type(nits) in [list, tuple]: nits = nits[1]  # The user may give different limits for Sink and SymSink
@@ -112,7 +116,10 @@ def sym_sink(α_i, x_i, cost_func, eps=.1, nits=100, tol=1e-3, assume_convergenc
         W_i = A_i + α_i_log
     else:
         W_i = (A_i + α_i_log).detach()
-        S_x, _ = Sinkhorn_ops(ε, x_i.detach(), x_i, cost_func)
+        try:
+            S_x, _ = Sinkhorn_ops(ε, x_i.detach(), x_i, cost_func) # inspect the effect
+        except:
+            S_x, _ = Sinkhorn_ops(ε, [x.detach() for x in x_i], x_i, cost_func)
 
     a_x = ε * S_x(W_i).view(-1) # a(x) = Smin_e,z~α [ C(x,z) - a(z) ]
     return a_x

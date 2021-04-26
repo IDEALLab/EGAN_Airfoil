@@ -16,7 +16,7 @@ def load_generator(gen_cfg, save_dir, checkpoint, device='cpu'):
 if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    save_dir = '../saves/sinkhorn3'
+    save_dir = '../saves/smm'
     _, gen_cfg, _, cz = read_configs('modified')
 
     epochs = [500,]

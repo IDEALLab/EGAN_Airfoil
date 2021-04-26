@@ -29,14 +29,14 @@ def assemble_new_gan(dis_cfg, gen_cfg, egan_cfg, device='cpu'):
 if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    batch = 32
+    batch = 32 # hyperparameter
     epochs = 500
     save_intvl = 50
 
     dis_cfg, gen_cfg, egan_cfg, cz = read_configs('modified')
     # data_fname = '../data/airfoil_interp.npy'
     data_fname = '../data/train.npy'
-    save_dir = '../saves/sinkhorn12'
+    save_dir = '../saves/smm'
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(os.path.join(save_dir, 'runs'), exist_ok=True)
 
