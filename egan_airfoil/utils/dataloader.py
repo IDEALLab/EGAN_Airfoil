@@ -21,7 +21,7 @@ class UIUCAirfoilDataset(Dataset):
         self.device = device
         self.airfoils = torch.tensor(
             np_data.transpose((0, 2, 1)), 
-            device=device, dtype=torch.float32
+            device=device, dtype=torch.float
         )
         if (N, k, D) == (192, 3, 20):
             self.N = N; self.k = k; self.D = D
@@ -31,8 +31,8 @@ class UIUCAirfoilDataset(Dataset):
     def refresh(self, N, k, D):
         self.N = N; self.k = k; self.D = D
         self.airfoils = torch.tensor(
-            np.array([interpolate(airfoil, N, k, D) for airfoil in self.airfoils]).astype('float32'),
-            device=self.device
+            [interpolate(airfoil, N, k, D) for airfoil in self.airfoils],
+            device=device, dtype=torch.float
         )
     
     def __getitem__(self, index):

@@ -3,12 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 
-def cross_distance(x, y, p=1, diag=False, useCosineDist=False):
-    x = x.reshape([len(x), -1]); y = y.reshape([len(y), -1])
-    if useCosineDist: # should call similarity function
-        return F.cosine_similarity(x.unsqueeze(0), y.unsqueeze(1), dim=-1)
-    else:
-        return torch.norm(x.unsqueeze(0) - y.unsqueeze(1), p=p, dim=-1) # shape [batch, batch]
 
 def strong_convex_func(x, lamb, useHingedL2=False):
     if useHingedL2:
