@@ -16,11 +16,14 @@ def load_generator(gen_cfg, save_dir, checkpoint, device='cpu'):
 if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    save_dir = '../saves/sinkhorn'
-    X = np.load('../data/airfoil_interp.npy')
-    X_test = np.load(os.path.join(save_dir, 'test.npy'))
-    _, gen_cfg, _, cz = read_configs('modified')
-    generator = load_generator(gen_cfg, save_dir, 'modified499.tar', device=device)
+    save_dir = '../saves/smm/latent/runs/dim_5'
+    X = np.load('../data/train.npy') # '../data/airfoil_interp.npy'
+    X_test = np.load('../data/test.npy')
+    _, gen_cfg, _, cz = read_configs('sink')
+    cz[0] = 5
+    gen_cfg['in_features'] = cz[0] + cz[1]
+
+    generator = load_generator(gen_cfg, save_dir, 'sink1999.tar', device=device)
 
     def gen_func(latent, noise=None):
         if isinstance(latent, int):
@@ -35,7 +38,7 @@ if __name__ == '__main__':
     
     n_run = 10
 
-    print("MLL: {} ± {}".format(*ci_mll(n_run, gen_func, X_test)))
+    # print("MLL: {} ± {}".format(*ci_mll(n_run, gen_func, X_test)))
     print("LSC: {} ± {}".format(*ci_cons(n_run, gen_func, cz[0])))
     print("RVOD: {} ± {}".format(*ci_rsmth(n_run, gen_func, X_test)))
     print("Diversity: {} ± {}".format(*ci_rdiv(n_run, X, gen_func)))

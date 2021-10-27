@@ -74,8 +74,11 @@ def plot_samples(Z, X, scale=0.8, points_per_axis=None, scatter=True, symm_axis=
     plt.axis('off')
     plt.axis('equal')
     plt.tight_layout()
-    plt.savefig(fname+'.svg', dpi=600)
-    plt.close()
+    if fname:
+        plt.savefig(fname+'.svg', dpi=600)
+        plt.close()
+    else:
+        return plt.gcf()
 
 def plot_synthesized(Z, gen_func, d=2, scale=.8, points_per_axis=None, scatter=True, symm_axis=None, fname=None, **kwargs):
     
