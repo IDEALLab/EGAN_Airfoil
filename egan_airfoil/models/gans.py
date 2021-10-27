@@ -319,14 +319,17 @@ class BezierEGAN(EGAN, BezierGAN):
                 pass
 
 class BezierSEGAN(SinkhornEGAN, BezierGAN):
+    def __init__(self, *args, w=4, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.w = w
+
     def loss_D(self, batch, noise_gen, **kwargs):
         noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
         fake = self.generate(noise)
-        info_loss = self.info_loss(fake, latent_code)
         cost_loss = -self.cost(batch, fake).mean() \
             if isinstance(self.cost, nn.Module) \
             else torch.tensor(0, device=batch.device)
-        return cost_loss #+ info_loss
+        return cost_loss
     
     def _update_D(self, *args, **kwargs): pass
 
@@ -336,7 +339,7 @@ class BezierSEGAN(SinkhornEGAN, BezierGAN):
         sinkhorn_loss = self.sinkhorn_divergence(batch, fake)
         info_loss = self.info_loss(fake, latent_code)
         reg_loss = self.regularizer(cp, w, pv, intvls)
-        return sinkhorn_loss + 5 * reg_loss + 2 * info_loss
+        return sinkhorn_loss + 5 * reg_loss + self.w * info_loss
     
     def info_loss(self, fake, latent_code):
         cost = lambda x1, x2: torch.cdist(x1[0].flatten(1), x2[0].flatten(1), p=1) \
@@ -357,11 +360,12 @@ class BezierSEGAN(SinkhornEGAN, BezierGAN):
             reg_loss = self.regularizer(cp, w, pv, intvls)
             if tb_writer:
                 # tb_writer.add_scalar('Dual Loss', dual_loss, epoch)
-                tb_writer.add_scalar('Sinkhorn Divergence', sinkhorn_loss, epoch)
-                tb_writer.add_scalar('Info Loss', info_loss, epoch)
-                tb_writer.add_scalar('Regularization Loss', reg_loss, epoch)
+                tb_writer.add_scalar('Loss/Sinkhorn Divergence', sinkhorn_loss, epoch)
+                tb_writer.add_scalar('Loss/Info Loss', info_loss, epoch)
+                tb_writer.add_scalar('Loss/Regularization Loss', reg_loss, epoch)
 
             try: 
-                kwargs['plotting'](epoch, fake)
+                kwargs['plotting'](epoch, fake, tb_writer)
+                kwargs['metrics'](epoch, self.generator, tb_writer)
             except:
                 pass
